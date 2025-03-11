@@ -14,7 +14,50 @@ open Section2sheet3solutions
 
 -- you can maybe do this one now
 theorem tendsTo_neg {a : ℕ → ℝ} {t : ℝ} (ha : TendsTo a t) : TendsTo (fun n ↦ -a n) (-t) := by
-  sorry
+  rw [tendsTo_def]
+  rw [tendsTo_def] at ha
+
+
+  -- have hq(n) : |a n - t| = |t - a n|
+  -- sorry
+
+  -- rw [hq] at ha
+
+
+  -- rw [abs_sub_comm ((a) t)]
+
+  -- change ∀ (ε : ℝ), 0 < ε → ∃ B, ∀ (n : ℕ), B ≤ n → |a n - t| < ε
+
+  simp_rw [abs_sub_comm]
+  ring
+  simp_rw [add_comm]
+  -- ring
+  exact ha
+
+
+  -- . intros ε ε_pos
+
+  --   specialize ha ε ε_pos
+
+  --   cases' ha with δ ha
+  --   use δ
+  --   intros n δ_le_n
+  --   specialize ha n δ_le_n
+  --   -- ring_nf
+  --   rw [abs_sub_comm]
+  --   ring_nf
+  --   rw [add_comm]
+  --   ring_nf
+  --   exact ha
+
+
+
+
+  done
+
+
+
+
 
 /-
 `tendsTo_add` is the next challenge. In a few weeks' time I'll
@@ -35,7 +78,9 @@ theorem tendsTo_add {a b : ℕ → ℝ} {t u : ℝ} (ha : TendsTo a t) (hb : Ten
   -- let ε > 0 be arbitrary
   intro ε hε
   --  There's a bound X such that if n≥X then a(n) is within ε/2 of t
-  specialize ha (ε / 2) (by linarith)
+  -- specialize ha (ε / 2) (by linarith)         -- Okko: why are ha and hb used differently?
+  specialize ha (ε / 2)
+  specialize ha (by linarith)
   cases' ha with X hX
   --  There's a bound Y such that if n≥Y then b(n) is within ε/2 of u
   obtain ⟨Y, hY⟩ := hb (ε / 2) (by linarith)
@@ -56,6 +101,11 @@ tends to `t - u`. -/
 theorem tendsTo_sub {a b : ℕ → ℝ} {t u : ℝ} (ha : TendsTo a t) (hb : TendsTo b u) :
     TendsTo (fun n ↦ a n - b n) (t - u) := by
   -- this one follows without too much trouble from earlier results.
-  sorry
+
+  have hnb := tendsTo_neg hb
+  have hadd := tendsTo_add ha hnb
+
+  -- exact hadd
+  exact tendsTo_add ha (tendsTo_neg hb)
 
 end Section2sheet5

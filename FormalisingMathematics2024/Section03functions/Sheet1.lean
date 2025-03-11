@@ -75,10 +75,37 @@ example : Injective (id : X → X) :=
   by-- you can start with `rw injective_def` if you like,
   -- and later you can `rw id_eval`, although remember that `rw` doesn't
   -- work under binders like `∀`, so use `intro` first.
-  sorry
+  intro a b iden
+  repeat rw [id_eval] at iden
+  exact iden
+
 
 example : Surjective (id : X → X) := by
-  sorry
+
+  intro a
+  use a
+  rw [id_eval]
+  done
+
+
+
+example (f : X → Y) (g : Y → Z) (hf : Injective f) (hg : Injective g) : Injective (g ∘ f) :=
+  by
+  -- rw [injective_def] at *
+  intros a b hgf
+  -- repeat rw [comp_eval] at hgf
+
+  -- specialize hf a b
+  -- specialize hg (f a) (f b)
+  apply hf -- a b
+  apply hg -- (f a) (f b)
+  exact hgf
+  -- apply hg at hgf
+  -- apply hf at hgf
+  -- exact hgf
+
+  done
+
 
 -- Theorem: if f : X → Y and g : Y → Z are injective,
 -- then so is g ∘ f

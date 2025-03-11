@@ -57,9 +57,21 @@ example : False ↔ P ∧ False := by
   done
 
 example : (P ↔ Q) → (R ↔ S) → (P ∧ R ↔ Q ∧ S) := by
-  sorry
+  intros a b
+  rw [b]
+  rw [a]
   done
 
 example : ¬(P ↔ ¬P) := by
-  sorry
+  intro a
+  cases' a with l r
+  by_cases h : P
+  .
+
+    exact l h h
+    -- have h1 := l h
+    -- apply h1 at h
+    -- exact h
+  . exact h (r h)
+
   done
