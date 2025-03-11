@@ -86,13 +86,30 @@ example : Injective (id : X → X) :=
 
 example : Surjective (id : X → X) := by
 
-  unfold Surjective
-  unfold id
+  intro a
+  use a
+  rw [id_eval]
+  done
 
-  intro b
-  use b
+
+
+example (f : X → Y) (g : Y → Z) (hf : Injective f) (hg : Injective g) : Injective (g ∘ f) :=
+  by
+  -- rw [injective_def] at *
+  intros a b hgf
+  -- repeat rw [comp_eval] at hgf
+
+  -- specialize hf a b
+  -- specialize hg (f a) (f b)
+  apply hf -- a b
+  apply hg -- (f a) (f b)
+  exact hgf
+  -- apply hg at hgf
+  -- apply hf at hgf
+  -- exact hgf
 
   done
+
 
 -- Theorem: if f : X → Y and g : Y → Z are injective,
 -- then so is g ∘ f

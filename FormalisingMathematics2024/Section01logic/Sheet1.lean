@@ -299,3 +299,42 @@ example :
 
 
   done
+
+
+
+-- Okko: mine.
+example (p : P) (pq: P → Q) : Q := by
+
+  -- have pq := pq p
+
+  specialize pq p
+  exact pq
+
+
+  done
+-- Okko: mine.
+example (p : P) (pq: P → Q) : Q := by
+
+  have pq1 := pq p
+
+
+  exact pq p
+
+
+  done
+-- Okko: mine.
+example (p : P) (pq: P → Q) : Q := by exact pq p
+
+-- Okko: mine.
+example (p : ℝ) (f : ℝ → Bool) (pq: ∀ (x : ℝ), f x) : f p := by
+
+
+
+  -- have pq1 :=
+  specialize pq p
+
+
+  exact pq
+
+
+  done

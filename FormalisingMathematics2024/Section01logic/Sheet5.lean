@@ -117,10 +117,8 @@ example : False ↔ P ∧ False := by
 
 example : (P ↔ Q) → (R ↔ S) → (P ∧ R ↔ Q ∧ S) := by
   intros a b
-  rw [a]
   rw [b]
-
-
+  rw [a]
   done
 
 example : ¬(P ↔ ¬P) := by

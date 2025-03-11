@@ -59,7 +59,7 @@ example (x y : ℝ) : |x| < y ↔ -y < x ∧ x < y := by exact abs_lt
 example (ε : ℝ) (hε : 0 < ε) : 0 < ε / 2 := by linarith
 
 -- or linarith, or guess the name...
-example (a b x y : ℝ) (h1 : a < x) (h2 : b < y) : a + b < x + y := by exact?
+example (a b x y : ℝ) (h1 : a < x) (h2 : b < y) : a + b < x + y := by exact add_lt_add h1 h2
 
 example (ε : ℝ) (hε : 0 < ε) : 0 < ε / 3 := by linarith
 
