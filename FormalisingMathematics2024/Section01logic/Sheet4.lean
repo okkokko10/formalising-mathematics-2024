@@ -26,39 +26,75 @@ and also the following tactics:
 variable (P Q R : Prop)
 
 example : P ∧ Q → P := by
-  sorry
+  intro pAq
+  cases' pAq with p q
+  exact p
   done
 
 example : P ∧ Q → Q := by
-  sorry
+  intro pAq
+  cases' pAq with p q
+  exact q
+
   done
 
 example : (P → Q → R) → P ∧ Q → R := by
-  sorry
+  intro pqr pAq
+
+  cases' pAq with p q
+
+  apply pqr
+  exact p
+  exact q
   done
 
 example : P → Q → P ∧ Q := by
-  sorry
+  intro p q
+  constructor
+  . exact p
+  . exact q
   done
 
 /-- `∧` is symmetric -/
 example : P ∧ Q → Q ∧ P := by
-  sorry
+  intro pAq
+  cases' pAq with p q
+  constructor
+
+  exact q
+
+  exact p
+
   done
 
 example : P → P ∧ True := by
-  sorry
+  intro p
+  constructor
+  exact p
+  triv
   done
 
 example : False → P ∧ False := by
-  sorry
+  intro f
+  constructor
+  exfalso; exact f -- Okko: Is there a shorthand for exfalso; assumption;
+  exact f
   done
 
 /-- `∧` is transitive -/
 example : P ∧ Q → Q ∧ R → P ∧ R := by
-  sorry
+  intro pAq qAr
+  cases' pAq with p q
+  cases' qAr with _ r
+  constructor
+  exact p
+  exact r
   done
 
 example : (P ∧ Q → R) → P → Q → R := by
-  sorry
+  intros a p q
+  apply a
+  constructor
+  exact p
+  exact q
   done

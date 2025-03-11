@@ -79,13 +79,41 @@ Let's prove some theorems.
 
 -/
 
-example : A ⊆ A := by sorry
+example : A ⊆ A := by
 
-example : A ⊆ B → B ⊆ C → A ⊆ C := by sorry
+  rw [subset_def]
+  intro xt xtA
+  exact xtA
 
-example : A ⊆ A ∪ B := by sorry
+  done
 
-example : A ∩ B ⊆ A := by sorry
+example : A ⊆ B → B ⊆ C → A ⊆ C := by
+
+  simp_rw [subset_def]
+  intro A_B B_C x xA
+  have xB := A_B x xA
+  have xC := B_C x xB
+  exact xC
+
+
+  done
+
+example : A ⊆ A ∪ B := by
+  rw [subset_def]
+  simp_rw [mem_union_iff]
+  intro x xA
+  left
+  exact xA
+
+
+  done
+
+example : A ∩ B ⊆ A := by
+  rw [subset_def]
+  intro x xAnB
+  rw [mem_inter_iff] at xAnB
+  exact Set.mem_of_mem_inter_left xAnB
+  done
 
 example : A ⊆ B → A ⊆ C → A ⊆ B ∩ C := by sorry
 

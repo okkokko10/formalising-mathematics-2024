@@ -78,7 +78,7 @@ example (fish : P) (giraffe : Q) (dodecahedron : R) : P := by
 -- Assume `Q` is true. Prove that `P → Q`.
 example (hQ : Q) : P → Q := by
   -- The goal is of the form `X → Y` so we can use `intro`
-  intro h
+  intro h -- Okko: Question. why does this have `P`?
   -- now `h` is the hypothesis that `P` is true.
   -- Our goal is now the same as a hypothesis so we can use `exact`
   exact hQ
@@ -92,7 +92,7 @@ example (h : P → Q) (hP : P) : Q :=
   -- `hP` to a proof of `Q`.
   apply h at hP
   -- now `hP` is a proof of `Q` so that's exactly what we want.
-  exact hP
+  exact hP -- Okko: why does it change in place? Reassignment in math? That bothers me a little.
   done
 
 -- The `apply` tactic always needs a hypothesis of the form `P → Q`. But instead of applying
@@ -119,7 +119,10 @@ Delete the `sorry`s and replace them with tactic proofs using `intro`,
 -/
 /-- Every proposition implies itself. -/
 example : P → P := by
-  sorry
+  intro h
+  apply h
+  -- Okko: why does this work?
+
   done
 
 /-
@@ -137,26 +140,62 @@ and `Q`. In general to prove `P1 → P2 → P3 → ... Pn` you can assume
 So the next level is asking you prove that `P → (Q → P)`.
 
 -/
+-- Okko: P1 → P2 → P3 → Q = (P1 ∧ P2 ∧ P3) → Q
 example : P → Q → P := by
-  sorry
+  intro h
+  intro
+  apply h
   done
 
 /-- If we know `P`, and we also know `P → Q`, we can deduce `Q`.
 This is called "Modus Ponens" by logicians. -/
 example : P → (P → Q) → Q := by
+  intro p
+  intro pq
+  apply (pq: P→Q) at p
+  exact p
+  done
+
+-- Okko: this is made by me
+example : P → (P → Q) → (Q∧P) := by
+  intro (p : P)
+  intro pq
+  apply pq at p
+  -- Okko: why is p changed and not pq?
   sorry
+
+
   done
 
 /-- `→` is transitive. That is, if `P → Q` and `Q → R` are true, then
   so is `P → R`. -/
+-- Okko: Ooh, → as a relation?
 example : (P → Q) → (Q → R) → P → R := by
-  sorry
+  intro pq
+  intro qr
+  intro p
+  -- apply pq at p
+  -- apply qr at p
+  -- exact p
+  apply qr -- Okko: it makes sense in this direction.
+  apply pq
+  exact p
   done
 
 -- If `h : P → Q → R` with goal `⊢ R` and you `apply h`, you'll get
 -- two goals! Note that tactics operate on only the first goal.
 example : (P → Q → R) → (P → Q) → P → R := by
-  sorry
+  intro h
+  intro pq
+  intro p
+  apply h
+
+  exact p
+
+  apply pq at p
+  exact p
+
+
   done
 
 /-
@@ -171,27 +210,92 @@ in this section, where you'll learn some more tactics.
 variable (S T : Prop)
 
 example : (P → R) → (S → Q) → (R → T) → (Q → R) → S → T := by
-  sorry
+  intro pr
+  intro sq
+  intro rt
+  intro qr
+  intro s
+
+  -- apply rt
+  -- apply qr
+  -- apply sq
+  -- exact s
+
+  apply sq at s
+  apply qr at s
+  apply rt at s
+  exact s
+
+
   done
 
 example : (P → Q) → ((P → Q) → P) → Q := by
-  sorry
+  intro pq
+  intro h
+
+  apply pq
+
+  apply h at pq
+  exact pq
+
+
+
   done
 
 example : ((P → Q) → R) → ((Q → R) → P) → ((R → P) → Q) → P := by
-  sorry
+  intro pq_r
+  intro qr_p
+  intro rp_q
+
+  apply qr_p
+  intro q
+  apply pq_r
+  intro
+  exact q
+
+
   done
 
 example : ((Q → P) → P) → (Q → R) → (R → P) → P := by
-  sorry
+  intro qp_p
+  intro qr
+  intro rp
+
+  -- apply rp
+  -- apply qr
+  apply qp_p
+  intro q
+  apply rp
+  apply qr
+  exact q
+
+
+
   done
 
 example : (((P → Q) → Q) → Q) → P → Q := by
-  sorry
+  intro pq_q_q
+  intro p
+  apply pq_q_q
+  intro pq
+  apply pq
+  exact p
+
   done
 
 example :
     (((P → Q → Q) → (P → Q) → Q) → R) →
       ((((P → P) → Q) → P → P → Q) → R) → (((P → P → Q) → (P → P) → Q) → R) → R := by
-  sorry
+  intro a b c
+  -- apply a
+  -- intro pqq pq
+  apply b
+  intro b1 p
+  intro
+  apply b1
+  intro
+  exact p
+
+
+
   done
