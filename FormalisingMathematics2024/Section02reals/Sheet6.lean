@@ -542,7 +542,10 @@ example (a : ℕ → ℝ) (s t : ℝ) (hs : TendsTo a s) (ht : TendsTo a t) : s 
   specialize hs B (Nat.le_max_right Bt Bs)
 
   simp only [e] at hs ht
+  set w := a B
   rw [abs_sub_comm] at hs
+  -- s is closer to w than to t
+  -- t is closer to w than to s
 
 
 
