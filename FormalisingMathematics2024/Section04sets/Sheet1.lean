@@ -115,7 +115,16 @@ example : A ∩ B ⊆ A := by
   exact Set.mem_of_mem_inter_left xAnB
   done
 
-example : A ⊆ B → A ⊆ C → A ⊆ B ∩ C := by sorry
+example : A ⊆ B → A ⊆ C → A ⊆ B ∩ C := by
+
+  intros A_B A_C
+  intro xx
+  intro xxA
+  have xxC := A_C xxA
+  have xxB := A_B xxA
+  exact { left := A_B xxA, right := A_C xxA }
+
+
 
 example : B ⊆ A → C ⊆ A → B ∪ C ⊆ A := by sorry
 

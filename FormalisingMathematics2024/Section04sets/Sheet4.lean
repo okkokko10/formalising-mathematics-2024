@@ -54,7 +54,11 @@ def IsEven (n : ℕ) : Prop :=
 -- but the way I've written it is perhaps easier to follow.
 
 example : 74 ∈ {n : ℕ | IsEven n} := by
-  sorry
+  simp
+
+  use (74/2)
+  norm_num
+  done
 
 -- Let's develop a theory of even real numbers
 def Real.IsEven (r : ℝ) :=

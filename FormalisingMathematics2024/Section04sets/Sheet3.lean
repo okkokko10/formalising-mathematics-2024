@@ -30,18 +30,39 @@ variable (X : Type) -- Everything will be a subset of `X`
   (x y z : X) -- x,y,z are elements of `X` or, more precisely, terms of type `X`
 
 -- x,y,z are elements of `X` or, more precisely, terms of type `X`
-example : x ∉ A → x ∈ A → False := by sorry
+example : x ∉ A → x ∈ A → False := by
+  intros nh h
+  exact nh h
+  done
 
-example : x ∈ A → x ∉ A → False := by sorry
+example : x ∈ A → x ∉ A → False := by
+  intros h nh
+  exact nh h
+  done
 
-example : A ⊆ B → x ∉ B → x ∉ A := by sorry
+example : A ⊆ B → x ∉ B → x ∉ A := by
+  intros A_B xnB
+  by_contra xA
+  have xB := A_B xA
+  exact xnB xB
+  done
 
 -- Lean couldn't work out what I meant when I wrote `x ∈ ∅` so I had
 -- to give it a hint by telling it the type of `∅`.
-example : x ∉ (∅ : Set X) := by sorry
+example : x ∉ (∅ : Set X) := by
+  intro xem
+  exact xem
+  -- have : False := xem
+  done
 
-example : x ∈ Aᶜ → x ∉ A := by sorry
+example : x ∈ Aᶜ → x ∉ A := by
+  intro xAc
+  exact xAc
+  done
 
-example : (∀ x, x ∈ A) ↔ ¬∃ x, x ∈ Aᶜ := by sorry
+example : (∀ x, x ∈ A) ↔ ¬∃ x, x ∈ Aᶜ := by
+  exact not_exists_not.symm
 
-example : (∃ x, x ∈ A) ↔ ¬∀ x, x ∈ Aᶜ := by sorry
+
+example : (∃ x, x ∈ A) ↔ ¬∀ x, x ∈ Aᶜ := by
+  exact not_forall_not.symm

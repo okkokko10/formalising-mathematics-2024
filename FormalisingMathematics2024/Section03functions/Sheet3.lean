@@ -98,13 +98,39 @@ example : ¬∀ A B C : Type, ∀ (φ : A → B) (ψ : B → C), Injective (ψ �
 -- Below is another one. Let's make a sublemma first.
 theorem gf_surjective : Surjective (g ∘ f) := by
   rw [Surjective]
-  simp
-  intro
+  simp only [comp_apply]
+  intro b
+  use X.a
 
-  sorry
+
+  done
 
 -- Another question from IUM
 example : ¬∀ A B C : Type, ∀ (φ : A → B) (ψ : B → C), Surjective (ψ ∘ φ) → Surjective φ := by
-  sorry
+  suffices ∃ A B C : Type, ∃ (φ : A → B) (ψ : B → C), ¬ (Surjective (ψ ∘ φ) → Surjective φ)
+  by tauto
+  simp only [not_forall, exists_prop, exists_and_right]
+  use X
+  use Y
+  use Z
+  -- x = g
+  -- φ = f
+  save
+  use f
+  constructor
+  · use g
+    unfold Surjective
+    intro b
+    use X.a
+  unfold Surjective
+  simp only [not_forall, not_exists]
+  use Y.c
+  -- intro x
+  tauto
+
+
+
+  done
+
 
 end Section3sheet1

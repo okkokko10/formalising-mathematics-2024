@@ -45,7 +45,14 @@ section Theory_of_Computation_9
 
 def countable {S : Type} (X : Set S) : Prop := ∃ f : ℕ → S, Set.range f = X
 
+-- def countable {S : Type} (X : Set S) : Prop := ∃ f : ℕ → X, Function.Surjective f
+
+
 def injective {S T : Type} (f : S → T) (X : Set S) : Prop := ∀ a b, a ∈ X → b ∈ X → f a = f b → a = b
+
+#check Function.Surjective
+
+def countably_infinite {S : Type} (X : Set S) : Prop := ∃ f : ℕ → X, Function.Bijective f
 
 theorem countable' {S : Type} {X : Set S} : countable X ↔ ∃ g : S → ℕ, injective g X := by
   constructor
@@ -120,7 +127,17 @@ theorem uncountable_has_uncountable_subset {S : Type} {A : Set S} :  ¬ countabl
 
 -- def countably_infinite {S : Type} (X : Set S) : Prop := ∃ f : ℕ → S, Set.range f = X
 
-theorem uncountable_has_countably_infinite_subset {S : Type} {A : Set S} :  ¬ countable A → ∃ B ⊆ A, ¬ countable B := by
+
+theorem uncountable_has_countably_infinite_subset {S : Type} {A : Set S} :  ¬ countable A → ∃ B ⊆ A, countably_infinite B := by
+
+  intros unc_A
+
+  have nemA : Set.Nonempty A := sorry
+
+  let w := Classical.choice nemA
+
+  -- have ff : ∃ f : ℕ → S, True := by
+
 
   sorry
   done
