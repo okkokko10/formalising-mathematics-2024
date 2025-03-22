@@ -53,13 +53,38 @@ first.
 
 -/
 
-theorem mul_left_cancel (h : a * b = a * c) : b = c := by sorry
+theorem mul_left_cancel (h : a * b = a * c) : b = c := by
+  have ww := congrArg (a⁻¹ * ·) h
+  simp only at ww
+  repeat rw [←mul_assoc] at ww
+  repeat rw [inv_mul_self] at ww
+  repeat rw [one_mul] at ww
+  exact ww
+  done
 
-theorem mul_eq_of_eq_inv_mul (h : b = a⁻¹ * c) : a * b = c := by sorry
 
-theorem mul_one (a : G) : a * 1 = a := by sorry
+theorem mul_eq_of_eq_inv_mul (h : b = a⁻¹ * c) : a * b = c := by
+  apply mul_left_cancel a⁻¹
+  rw [←mul_assoc]
+  rw [inv_mul_self,one_mul]
+  exact h
+  done
 
-theorem mul_inv_self (a : G) : a * a⁻¹ = 1 := by sorry
+theorem mul_one (a : G) : a * 1 = a := by
+  apply mul_left_cancel a⁻¹
+  rw [←mul_assoc]
+  rw [inv_mul_self]
+  -- nth_rw 3 [←one_mul 1]
+  rw [one_mul]
+  done
+
+theorem mul_inv_self (a : G) : a * a⁻¹ = 1 := by
+  apply mul_left_cancel a⁻¹
+  rw [←mul_assoc]
+  rw [inv_mul_self]
+  rw [mul_one,one_mul]
+
+  done
 
 end WeakGroup
 
@@ -80,24 +105,70 @@ class BadGroup (G : Type) extends One G, Mul G, Inv G : Type where
   mul_one : ∀ a : G, a * 1 = a
   inv_mul_self : ∀ a : G, a⁻¹ * a = 1
 
+
+/-
+0 * 1 = 0
+1 * 1 = 1
+(0 * 1) * c = 0 * (1 * c)
+(0 * c) * 1 = 0 * (c * 1)
+(0 * 1) * 0 = 0 * (1 * 0)
+  0 * 0 = 0 * (1 * 0)
+
+
+
+0⁻¹ * 1 = 0⁻¹
+0⁻¹ * 0 = 1
+
+mul_one:
+  1 * 1 = 1
+  0 * 1 = 0
+inv_mul_self:
+  0⁻¹ * 0 = 1
+  1⁻¹ * 1 = 1
+
+
+find contradiction:
+1 * 0 = 1
+
+
+1 * 1 = 1
+0 * 1 = 0
+
+
+that's 3/4 cases decided. what is 0 * 0
+1 * (0 * 0) = (1 * 0) * 0 = (1) * 0
+
+
+0 * 0 = 0
+
+
+-/
+
 -- `Bool` is a type with two terms, `Bool.true` and `Bool.false`. See if you can make it into
 -- a bad group which isn't a group!
 instance : One Bool :=
-  ⟨sorry⟩
+  ⟨Bool.true⟩
 
 instance : Mul Bool :=
-  ⟨sorry⟩
+  ⟨(fun x y ↦ x)⟩
 
 instance : Inv Bool :=
-  ⟨sorry⟩
+  ⟨(fun x ↦ Bool.true)⟩
 
 instance : BadGroup Bool where
-  mul_assoc := sorry
+  mul_assoc := by
+    decide
+    done
   -- `decide`, might be able to do this
-  mul_one := sorry
+  mul_one :=
+    by decide
   -- decide
-  inv_mul_self := sorry
+  inv_mul_self := by decide
   -- decide
 
-example : ¬∀ a : Bool, 1 * a = a := by sorry
+example : ¬∀ a : Bool, 1 * a = a := by
+  intro w
+  specialize w Bool.false
+  simp only at w
+
 -- decide

@@ -128,6 +128,8 @@ theorem uncountable_has_uncountable_subset {S : Type} {A : Set S} :  ¬ countabl
 -- def countably_infinite {S : Type} (X : Set S) : Prop := ∃ f : ℕ → S, Set.range f = X
 
 
+-- theorem uncountable_has_countably_infinite_subset {S : Type} {A : Set S} :  ¬ countable A → ∃ B ⊆ A, countable B ∧ Set.Infinite B := by
+
 theorem uncountable_has_countably_infinite_subset {S : Type} {A : Set S} :  ¬ countable A → ∃ B ⊆ A, countably_infinite B := by
 
   intros unc_A
@@ -144,3 +146,15 @@ theorem uncountable_has_countably_infinite_subset {S : Type} {A : Set S} :  ¬ c
 
 
 end Theory_of_Computation_9
+
+
+
+example (a b c d e f g N : Prop) : (b ∨ a) ∨ (c ∨ d) ∨ (e ∨ f) ∨ g → c := by
+
+  intro long
+  -- rw [or_comm] at long
+  -- convert_to
+  simp only [or_assoc] at long
+  norm_num
+
+  done

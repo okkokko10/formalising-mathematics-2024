@@ -120,14 +120,53 @@ example : A ⊆ B → A ⊆ C → A ⊆ B ∩ C := by
   intros A_B A_C
   intro xx
   intro xxA
-  have xxC := A_C xxA
-  have xxB := A_B xxA
+  -- have xxC := A_C xxA
+  -- have xxB := A_B xxA
   exact { left := A_B xxA, right := A_C xxA }
 
 
 
-example : B ⊆ A → C ⊆ A → B ∪ C ⊆ A := by sorry
+example : B ⊆ A → C ⊆ A → B ∪ C ⊆ A := by
 
-example : A ⊆ B → C ⊆ D → A ∪ C ⊆ B ∪ D := by sorry
 
-example : A ⊆ B → C ⊆ D → A ∩ C ⊆ B ∩ D := by sorry
+  intros BcA CcA
+  rw [subset_def]
+  intro x
+  simp_rw [mem_union_iff]
+  intro orr
+
+
+
+
+
+  have : x ∈ A ∨ x ∈ C := by exact Or.imp_left (fun x ↦ BcA x) orr
+  have w := Or.imp (@BcA _) (@CcA _) orr
+  have := or_self _ ▸ w
+  simp only [or_self] at w
+  exact w
+
+
+
+
+
+example : A ⊆ B → C ⊆ D → A ∪ C ⊆ B ∪ D := by
+
+  intros AcB CcD
+  rw [subset_def] at *
+  simp_rw [mem_union_iff]
+  intro x
+  specialize AcB x
+  specialize CcD x
+  exact Or.imp AcB CcD
+  -- exact fun a ↦ Or.imp AcB CcD a
+
+  done
+
+example : A ⊆ B → C ⊆ D → A ∩ C ⊆ B ∩ D := by
+
+  intros ab cd
+  rw [subset_def] at *
+  simp_rw [mem_inter_iff]
+  exact fun x a ↦ And.imp (ab x) (cd x) a
+
+  done

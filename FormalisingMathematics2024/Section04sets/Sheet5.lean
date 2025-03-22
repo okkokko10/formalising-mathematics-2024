@@ -35,22 +35,75 @@ variable (X : Type)
   (x y z : X)
 
 -- x,y,z are elements of `X` or, more precisely, terms of type `X`
-example : A ∪ A = A := by sorry
+example : A ∪ A = A := by
 
-example : A ∩ A = A := by sorry
+  ext x
+  simp_rw [Set.mem_union]
+  simp only [or_self]
 
-example : A ∩ ∅ = ∅ := by sorry
 
-example : A ∪ univ = univ := by sorry
+  done
 
-example : A ⊆ B → B ⊆ A → A = B := by sorry
+example : A ∩ A = A := by
 
-example : A ∩ B = B ∩ A := by sorry
+  ext x
+  simp_rw [Set.mem_inter_iff]
+  simp only [and_self]
+  done
 
-example : A ∩ (B ∩ C) = A ∩ B ∩ C := by sorry
+example : A ∩ ∅ = ∅ := by
+  ext x
+  simp_rw [Set.mem_inter_iff]
+  simp only [mem_empty_iff_false, and_false]
+  done
 
-example : A ∪ (B ∪ C) = A ∪ B ∪ C := by sorry
+example : A ∪ univ = univ := by
+  ext x
+  simp_rw [Set.mem_union]
+  simp only [mem_univ, or_true]
+  done
 
-example : A ∪ B ∩ C = (A ∪ B) ∩ (A ∪ C) := by sorry
+example : A ⊆ B → B ⊆ A → A = B := by
 
-example : A ∩ (B ∪ C) = A ∩ B ∪ A ∩ C := by sorry
+  intros ab ba
+  ext x
+  constructor
+  exact @ab _
+  exact @ba _
+
+  done
+
+example : A ∩ B = B ∩ A := by
+  ext x
+  simp_rw [Set.mem_inter_iff]
+  rw [And.comm]
+  done
+
+example : A ∩ (B ∩ C) = A ∩ B ∩ C := by
+
+  ext x
+  simp_rw [Set.mem_inter_iff]
+  tauto
+
+  done
+
+example : A ∪ (B ∪ C) = A ∪ B ∪ C := by
+  ext x
+  simp_rw [Set.mem_union]
+  tauto
+  done
+
+example : A ∪ B ∩ C = (A ∪ B) ∩ (A ∪ C) := by
+  ext x
+  simp only [mem_union, mem_inter_iff]
+  -- simp_rw [Set.mem_union]
+  -- simp_rw [Set.mem_inter_iff]
+  -- simp_rw [Set.mem_union]
+  tauto
+
+  done
+
+example : A ∩ (B ∪ C) = A ∩ B ∪ A ∩ C := by
+  ext x
+  simp only [mem_inter_iff, mem_union]
+  tauto

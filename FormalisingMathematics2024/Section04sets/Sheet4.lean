@@ -66,8 +66,18 @@ def Real.IsEven (r : ℝ) :=
 
 -- Turns out it's not interesting
 example : ∀ x, x ∈ {r : ℝ | Real.IsEven r} := by
-  sorry
+  intro x
+  rw [Set.mem_setOf]
+  unfold Real.IsEven
+  use x/2
+  ring
+  done
 
 -- likewise, the theory of positive negative real numbers is not interesting
 example : ∀ x, x ∉ {r : ℝ | 0 < r ∧ r < 0} := by
-  sorry
+
+  intro x
+  intro a
+  have := Set.mem_setOf.mp a
+  rw [Set.mem_setOf] at a
+  linarith only [a]
