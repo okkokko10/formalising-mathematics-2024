@@ -35,9 +35,24 @@ example (a b : G) (ha : a ∈ H) (hb : b ∈ H) : a * b ∈ H := by
 
 -- Try this one:
 
+-- infixl:70 " * "   => fun {G : Type} [Group G] {H : Subgroup G} {a b : G} (ha : a ∈ H) (hb : b ∈ H) ↦ (Subgroup.mul_mem H ha hb)
+
+-- postfix:max "⁻¹" => fun {G : Type} [Group G] {H : Subgroup G} {a : G} (ha : a ∈ H) ↦ (Subgroup.inv_mem H ha)
+
+
 example (a b c : G) (ha : a ∈ H) (hb : b ∈ H) (hc : c ∈ H) :
     a * b⁻¹ * 1 * (a * c) ∈ H := by
-  sorry
+  -- set ac := a * c
+  -- have : ac ∈ H := by exact Subgroup.mul_mem H ha hc
+  -- have := ha * hb
+  -- have ww := fun {a b : G} (ha : a ∈ H) (hb : b ∈ H) ↦ H.mul_mem ha hb
+  -- exact ha * hb⁻¹ * H.one_mem * (ha * hc)
+  -- exact ha ∈* hb∈⁻¹ ∈* H.one_mem ∈* (ha ∈* hc)
+
+  exact H.mul_mem (H.mul_mem (H.mul_mem ha (H.inv_mem hb)) H.one_mem) (H.mul_mem ha hc)
+
+
+  done
 
 /-
 
@@ -65,10 +80,17 @@ example (H K : Subgroup G) (a : G) : a ∈ H ⊓ K ↔ a ∈ H ∧ a ∈ K := by
   -- true by definition!
   rfl
 
+#check Set.range
 -- Note that `a ∈ H ⊔ K ↔ a ∈ H ∨ a ∈ K` is not true; only `←` is true.
 -- Take apart the `Or` and use `exact?` to find the relevant lemmas.
 example (H K : Subgroup G) (a : G) : a ∈ H ∨ a ∈ K → a ∈ H ⊔ K := by
-  sorry
+
+  intro aHK
+  cases' aHK with h hr
+  exact Subgroup.mem_sup_left h
+  exact Subgroup.mem_sup_right hr
+
+  done
 
 end Subgroups
 
@@ -97,13 +119,22 @@ example (a b : G) : φ (a * b⁻¹ * 1) = φ a * (φ b)⁻¹ * 1 := by
   -- if `φ.map_mul` means that `φ` preserves multiplication
   -- (and you can rewrite with this) then what do you think
   -- the lemmas that `φ` preserves inverse and one are called?
-  sorry
+  -- have bi := φ.map_inv b
+  -- have : φ (a * b⁻¹ * 1) = φ (a * b⁻¹) * φ 1 := by exact φ.map_mul _ _
+  rewrite [←φ.map_one]
+  rewrite [←φ.map_inv]
+  rewrite [←φ.map_mul]
+  rewrite [←φ.map_mul]
+  rfl
+  done
 
 -- Group homomorphisms are extensional: if two group homomorphisms
 -- are equal on all inputs the they're the same.
 
 example (φ ψ : G →* H) (h : ∀ g : G, φ g = ψ g) : φ = ψ := by
   -- Use the `ext` tactic.
-  sorry
+  ext x
+  exact h x
+  done
 
 end Homomorphisms
