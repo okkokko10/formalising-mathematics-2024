@@ -84,17 +84,59 @@ variable (L : Type) [Lattice L] (a b c : L)
 example : a ⊔ b = b ⊔ a := by
   -- you might want to start with `apply le_antisymm` (every lattice is a partial order so this is OK)
   -- You'll then have two goals so use `\.` and indent two spaces.
-  sorry
+  apply le_antisymm
+  ·
+    -- have w1 : a ≤ a ⊔ b := @le_sup_left _ _ a b
+    exact sup_le (le_sup_right : a ≤ b ⊔ a) (le_sup_left : b ≤ b ⊔ a)
+    -- exact sup_le (le_sup_right) (le_sup_left)
+
+    done
+  ·
+    exact sup_le (le_sup_right) (le_sup_left)
+    done
+
 
 example : a ⊔ b ⊔ c = a ⊔ (b ⊔ c) := by
-  sorry
+    apply le_antisymm
+    ·
+
+      -- have w1 : a ≤ a ⊔ (b ⊔ c)  := le_sup_left
+      -- have w2 : (b ⊔ c) ≤ a ⊔ (b ⊔ c)  := le_sup_right
+      apply sup_le
+      ·
+        apply sup_le
+        · exact le_sup_left
+        · trans (b ⊔ c)
+          · exact le_sup_left
+          · exact le_sup_right
+          done
+        done
+      ·
+        -- exact le_trans (le_sup_right) (le_sup_right)
+        exact le_trans (le_sup_right : c ≤ b ⊔ c) (le_sup_right : b ⊔ c ≤ (a ⊔ (b ⊔ c)))
+        done
+
+      done
+    ·
+      apply sup_le
+      · exact le_trans (le_sup_left) (le_sup_left)
+      · apply sup_le
+        · exact le_trans le_sup_right le_sup_left
+        · exact le_sup_right
+
+    done
 
 -- could golf this entire proof into one (long) line
 -- `a ⊓ _` preserves `≤`.
 -- Note: this is called `inf_le_inf_left a h` in mathlib; see if you can prove it
 -- directly without using this.
 example (h : b ≤ c) : a ⊓ b ≤ a ⊓ c := by
-  sorry
+  apply le_inf
+  · exact inf_le_left
+  ·
+    -- have : a ⊓ b ≤ b := inf_le_right
+    exact le_trans (inf_le_right) h
+  done
 
 /-
 
@@ -109,11 +151,27 @@ do have inclusions though, which is what you can prove in general.
 -/
 -- `inf_le_inf_left`, proved above, is helpful here.
 example : (a ⊓ b) ⊔ (a ⊓ c) ≤ a ⊓ (b ⊔ c) := by
-  sorry
+
+  apply le_inf
+  · apply sup_le
+    · exact inf_le_left
+    · exact inf_le_left
+  · apply sup_le
+    · trans b
+      · exact inf_le_right
+      · exact le_sup_left
+    · trans c
+      · exact inf_le_right
+      · exact le_sup_right
+
+  done
 
 -- use `sup_le_sup_left` for this one.
 example : a ⊔ b ⊓ c ≤ (a ⊔ b) ⊓ (a ⊔ c) := by
-  sorry
+  apply le_inf
+  · exact sup_le_sup_left inf_le_left _
+  · exact sup_le_sup_left inf_le_right _
+
 
 -- Bonus question: look up the binding powers of ⊓ and ⊔ (by using crtl-click to jump
 -- to their definitions) and figure out which brackets

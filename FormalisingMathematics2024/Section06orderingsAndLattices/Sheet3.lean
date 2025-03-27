@@ -25,4 +25,52 @@ this question.
 
 example (L : Type) [Lattice L] :
     (∀ a b c : L, a ⊔ b ⊓ c = (a ⊔ b) ⊓ (a ⊔ c)) ↔ ∀ a b c : L, a ⊓ (b ⊔ c) = a ⊓ b ⊔ a ⊓ c := by
+
+
+  constructor
+  · intros h a b c
+    have w1 := h a b c
+    by_cases ab : (a ≤ b) --<;>
+
+
+    · by_cases ba : (b ≤ a) --<;>
+
+
+      have a_b : a = b := le_antisymm ab ba
+      simp_rw [a_b] at *
+      simp
+
+    -- have axb : ¬ a = b := by
+    --   by_contra qq
+    --   have q1 := (le_refl a)
+    --   nth_rw 1 [qq] at q1
+
+    -- by_cases ac : (a ≤ c) <;>
+    -- by_cases ca : (c ≤ a) <;>
+    -- by_cases bc : (b ≤ c) <;>
+    -- by_cases cb : (c ≤ b) <;>
+
+    -- simp [ab,ba,ac,ca,bc,cb] at w1 ⊢
+      -- try simp [ab,ba,ac,ca,bc,cb,w1]
+    done
+    -- have w2 : a ≤ a ⊔ b ⊓ c := le_sup_left
+    -- rw [w1] at w2
+    -- have w3 := h (a ⊓ b) a c
+    -- simp at w3
+    -- rw [w3]
+
+    -- apply le_antisymm
+    -- · apply inf_le_inf_left
+    --   simp
+    --   have := h c a b
+    --   rw [sup_comm] at this
+    --   rw [this]
+    --   simp
+
+
+    done
+
+  ·
+    done
+
   sorry

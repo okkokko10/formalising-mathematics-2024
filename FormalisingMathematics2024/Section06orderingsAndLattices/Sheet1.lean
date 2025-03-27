@@ -57,10 +57,12 @@ variable (a b c d : X)
 
 -- See if you can prove these basic facts about partial orders.
 example : a ≤ a := by
-  sorry
+  exact le_refl _
 
 example (hab : a ≤ b) (hbc : b ≤ c) (hcd : c ≤ d) : a ≤ d := by
-  sorry
+  exact le_trans (le_trans hab hbc) hcd
+
+
 
 example (hab : a ≤ b) (hbc : b ≤ c) (hca : c ≤ a) : a = b := by
-  sorry
+  exact le_antisymm hab (le_trans hbc hca)
