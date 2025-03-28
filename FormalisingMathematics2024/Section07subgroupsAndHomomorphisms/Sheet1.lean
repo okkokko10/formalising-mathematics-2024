@@ -41,21 +41,41 @@ example (ha : a ∈ H) : a⁻¹ ∈ H :=
 example (ha : a ∈ H) (hb : b ∈ H) : a * b ∈ H :=
   mul_mem ha hb
 
+
+-- infixl:70 " * "  => mul_mem
+-- postfix:max "⁻¹" => inv_mem
+
+
 -- Let's use these axioms to make more API for subgroups.
 -- First, see if you can put the axioms together to prove subgroups are closed under "division".
 example (ha : a ∈ H) (hb : b ∈ H) : a * b⁻¹ ∈ H := by
-  sorry
+  exact ha |> mul_mem <| inv_mem hb
+  -- exact ha * hb⁻¹
 
 -- Now try these. You might want to remind yourself of the API for groups as explained
 -- in an earlier section, or make use of the `group` tactic.
 -- This lemma is called `Subgroup.inv_mem_iff` but try proving it yourself
 example : a⁻¹ ∈ H ↔ a ∈ H := by
-  sorry
+  constructor
+  intro hai
+  exact inv_inv a ▸ (inv_mem hai)
+  intro ha
+  exact inv_mem ha
+  done
 
 -- this is `mul_mem_cancel_left` but see if you can do it from the axioms of subgroups.
 -- Again feel free to use the `group` tactic.
 example (ha : a ∈ H) : a * b ∈ H ↔ b ∈ H := by
-  sorry
+
+  constructor
+  intro ab
+  have hb := (inv_mem ha) |> mul_mem <| ab
+  simp only [inv_mul_cancel_left] at hb
+  exact hb
+  intro hb
+  exact ha |> mul_mem <| hb
+
+  done
 
 /-
 
@@ -107,16 +127,38 @@ variable {G H} {x : G}
 variable {y z : G}
 
 theorem conjugate.one_mem : (1 : G) ∈ {a : G | ∃ h, h ∈ H ∧ a = x * h * x⁻¹} := by
-  sorry
+  simp only [Set.mem_setOf_eq]
+  use (1 : G)
+  simp only [mul_one, mul_right_inv, and_true]
+  exact H.one_mem
+  done
 
 theorem conjugate.inv_mem (hy : y ∈ {a : G | ∃ h, h ∈ H ∧ a = x * h * x⁻¹}) :
     y⁻¹ ∈ {a : G | ∃ h, h ∈ H ∧ a = x * h * x⁻¹} := by
-  sorry
+  simp only [Set.mem_setOf_eq] at *
+  rcases hy with ⟨h,hh,hy⟩
+  use h⁻¹
+  use H.inv_mem hh
+  rw [hy]
+  simp only [mul_inv_rev, inv_inv]
+  simp only [mul_assoc]
+  done
 
 theorem conjugate.mul_mem (hy : y ∈ {a : G | ∃ h, h ∈ H ∧ a = x * h * x⁻¹})
     (hz : z ∈ {a : G | ∃ h, h ∈ H ∧ a = x * h * x⁻¹}) :
     y * z ∈ {a : G | ∃ h, h ∈ H ∧ a = x * h * x⁻¹} := by
-  sorry
+  simp only [Set.mem_setOf_eq] at *
+  rcases hy with ⟨py,hpy,hy⟩
+  rcases hz with ⟨pz,hpz,hz⟩
+  rw [hz, hy]
+
+  use py * pz
+  group
+  rw [and_true]
+  exact H.mul_mem hpy hpz
+
+
+  done
 
 -- Now here's the way to put everything together:
 def conjugate (H : Subgroup G) (x : G) : Subgroup G

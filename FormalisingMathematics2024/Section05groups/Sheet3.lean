@@ -38,6 +38,8 @@ example (a b : G) (ha : a ∈ H) (hb : b ∈ H) : a * b ∈ H := by
 -- infixl:70 " * "   => fun {G : Type} [Group G] {H : Subgroup G} {a b : G} (ha : a ∈ H) (hb : b ∈ H) ↦ (Subgroup.mul_mem H ha hb)
 
 -- postfix:max "⁻¹" => fun {G : Type} [Group G] {H : Subgroup G} {a : G} (ha : a ∈ H) ↦ (Subgroup.inv_mem H ha)
+-- infixl:70 " * "  => mul_mem
+-- postfix:max "⁻¹" => inv_mem
 
 
 example (a b c : G) (ha : a ∈ H) (hb : b ∈ H) (hc : c ∈ H) :

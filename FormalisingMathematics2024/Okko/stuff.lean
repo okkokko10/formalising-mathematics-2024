@@ -148,6 +148,7 @@ theorem uncountable_has_countably_infinite_subset {S : Type} {A : Set S} :  ¬ c
 end Theory_of_Computation_9
 
 
+section abstractAlgebra_Hw_2_4
 
 example (a b c d e f g N : Prop) : (b ∨ a) ∨ (c ∨ d) ∨ (e ∨ f) ∨ g → c := by
 
@@ -158,3 +159,32 @@ example (a b c d e f g N : Prop) : (b ∨ a) ∨ (c ∨ d) ∨ (e ∨ f) ∨ g �
   norm_num
 
   done
+
+
+
+
+example {X : Type} {A B H : Set X} :
+  (A ∪ B) ⊆ H ↔ A ⊆ H ∧ B ⊆ H
+  := Set.union_subset_iff
+
+-- example {G : Type} [AddCommGroup G] {n : ℕ} (g : ℕ → G) :
+#check Function.Bijective
+
+def Permutation (n : ℕ) (s : ℕ → ℕ) : Prop := (∀ x ≤ n, s x ≤ n) ∧ Function.Bijective s
+
+def S(n : ℕ) : Set (ℕ → ℕ) := {s | Permutation n s}
+
+example {n : ℕ} [Group (S n)] :
+  ∃ A : Subgroup (S n),
+    A.carrier = {s ∈ (S n) | s n = n} := by
+
+
+
+  sorry
+
+-- example : false := by
+--   A = [Sₙ₋₁]'
+
+--   done
+
+end abstractAlgebra_Hw_2_4
