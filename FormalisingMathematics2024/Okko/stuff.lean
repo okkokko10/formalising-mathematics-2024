@@ -188,3 +188,48 @@ example {n : ℕ} [Group (S n)] :
 --   done
 
 end abstractAlgebra_Hw_2_4
+
+section metricSpaces_hw_2_5
+
+-- f ∘ [{X → Y}] = {X → f[Y]}
+example {X Y Z : Type}(f : Y → Z) :  {(f ∘ g) | g : X → Y} = {h : X → Z | Set.range h ⊆ Set.range f} := by
+
+  ext σ
+  simp only [Set.mem_setOf_eq]
+  unfold Set.range
+  simp only [Set.setOf_subset_setOf, forall_exists_index, forall_apply_eq_imp_iff]
+  constructor
+  ·
+    intro ⟨g,fogσ⟩
+    intro x
+    use g x
+    rw [←fogσ]
+    rw [Function.comp_apply]
+    done
+  ·
+    intro ww
+    let g (x) := (ww x).choose
+    use g
+    ext x
+    -- have ⟨y, fy_σx⟩ := ww x
+    -- simp
+    exact Exists.choose_spec (ww x)
+    -- rw [←fy_σx]
+    -- rw [Function.comp_apply]
+
+    -- have : (g x) = y := by
+
+    --   simp
+
+
+    done
+  done
+
+-- def Compact {R : Type} (X : Set R) : Prop := ∀ xn : ℕ → X,
+
+-- example (f : ℝ → ℝ) (E : Set ℝ) (h : Compact E) : Compact (f '' E) := by
+
+  done
+
+
+end metricSpaces_hw_2_5

@@ -74,3 +74,38 @@ example (L : Type) [Lattice L] :
     done
 
   sorry
+
+
+
+example (L : Type) [Lattice L] :
+    (∀ a b c : L, a ⊔ b ⊓ c = (a ⊔ b) ⊓ (a ⊔ c)) ↔ ∀ a b c : L, a ⊓ (b ⊔ c) = a ⊓ b ⊔ a ⊓ c := by
+
+
+  -- have h1 : ∀ a b c : L, a ⊔ b ⊓ c ≤ (a ⊔ b) ⊓ (a ⊔ c) := by exact fun a b c ↦ sup_inf_le
+  -- have h2 : ∀ a b c : L, (a ⊓ b) ⊔ (a ⊓ c) ≤ a ⊓ (b ⊔ c) := by exact fun a b c ↦ le_inf_sup
+  simp_rw [le_antisymm_iff]
+  simp only [sup_inf_le, le_inf_sup, true_and, and_true]
+
+  constructor
+  · intro h a b c
+
+    -- (the supremum is either) ↔ (the infinum is either)
+    --
+    -- a ≤ b ≤ c
+    -- a, b ≤ c
+    -- a ≤ b, c
+    -- a b c
+
+    have w := h (a ⊓ b) a c
+    refine le_trans ?_ w
+    simp
+    refine le_trans ?_ (le_sup_right : c ≤ a ⊓ b ⊔ c)
+
+
+
+    sorry
+
+
+
+
+  sorry

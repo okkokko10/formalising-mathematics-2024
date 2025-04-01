@@ -198,15 +198,47 @@ theorem mem_conjugate_iff : a ∈ conjugate H x ↔ ∃ h, h ∈ H ∧ a = x * h
   rfl
 
 theorem conjugate_mono (H K : Subgroup G) (h : H ≤ K) : conjugate H x ≤ conjugate K x := by
-  sorry
+  -- have (w) : w ∈  (conjugate H x) ↔ w ∈  (x * · * x⁻¹) '' H := by
+  --   rw [mem_conjugate_iff]
+  --   rw [Set.image]
+  --   simp only [SetLike.mem_coe, Set.mem_setOf_eq]
+  --   simp_rw [eq_comm]
+  --   done
+  rw [SetLike.le_def]
+  intro a a_Hx
+  simp_rw [mem_conjugate_iff] at *
+  have ⟨p,pH,a_Hx⟩ := a_Hx
+  use p
+  use (h pH)
+  done
 
 theorem conjugate_bot : conjugate ⊥ x = ⊥ := by
-  sorry
+  ext w
+  rw [mem_conjugate_iff]
+  simp_rw [Subgroup.mem_bot,exists_eq_left,mul_one,mul_right_inv]
+  done
 
 theorem conjugate_top : conjugate ⊤ x = ⊤ := by
-  sorry
+  ext w
+  rw [mem_conjugate_iff]
+  -- simp only [Subgroup.mem_top, true_and, iff_true]
+  simp only [Subgroup.mem_top, true_and, iff_true]
+  use (x⁻¹ * w * x)
+  group
+
+
+  done
 
 theorem conjugate_eq_of_abelian (habelian : ∀ a b : G, a * b = b * a) : conjugate H x = H := by
-  sorry
+
+  ext w
+  rw [mem_conjugate_iff]
+  -- have comm : CommGroup G := by exact CommGroup.mk habelian
+  -- abel_nf
+  simp_rw [habelian x _]
+  group
+  exact exists_eq_right'
+
+  done
 
 end Section7sheet1
