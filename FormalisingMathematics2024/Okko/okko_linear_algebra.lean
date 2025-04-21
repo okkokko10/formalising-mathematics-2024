@@ -12,51 +12,32 @@ Excercise Sheet 1
 
 -/
 
+variable {N : Type} [Fintype N] [Finite N] [DecidableEq N]
 
-
-
--- def N := Finset.range n
--- variable {nn : ℕ}
--- def N : Type := Fin 10
-
-variable {N : Type} [Fintype N] [Finite N] [DecidableEq N] [Nonempty N]
-
--- def I := Finset.range 1
-variable [AddCommMonoid (N → ℝ)] [AddCommGroup (N → ℝ)]
--- variable [FiniteDimensional ℝ (N → ℝ)]
-variable [Module ℝ (N → ℝ)] --[HMul (N → ℝ) ℝ (N → ℝ)] [HMul ℝ (N → ℝ) (N → ℝ)] --
--- variable [Inner ℝ (N → ℝ)]
-
--- example : Module ℝ (N → ℝ) :=
---   by
---   exact inferInstance
-
--- variable [NormedAddCommGroup (N → ℝ)] [IsROrC ℝ] [InnerProductSpace ℝ (N → ℝ)]
+-- variable [AddCommMonoid (N → ℝ)] [AddCommGroup (N → ℝ)] [Module ℝ (N → ℝ)]
 
 open BigOperators
 
 /-- x y ↦ xᵀy -/
--- def dotProduct : (N → ℝ) → (N → ℝ) → ℝ := fun x y ↦ (Finset.sum Finset.univ (fun n ↦ (x n) * (y n)))
 def dotProduct : (N → ℝ) → (N → ℝ) → ℝ := fun x y ↦ ∑ n, (x n) * (y n)
 
 
-lemma positive_definiteness_lemma (x : (N → ℝ)) (subset : Finset N) : 0 ≤ ∑ n in subset, x n * x n := by
-    set f := (fun (n) ↦ x n * x n)
-    let p (s) := 0 ≤ ∑ i in s, f i
-    have empty : p ∅ := by exact Eq.le rfl
-    classical
-      refine subset.induction_on (empty) ?_
-      intro a s ans previous
-      rw [Finset.sum_insert ans]
-      have xaxa_nonneg : 0 ≤ x a * x a  := mul_self_nonneg (x a)
-      exact add_nonneg xaxa_nonneg previous
+lemma positive_definiteness_lemma (x : (N → ℝ)) (subset : Finset N) :
+  0 ≤ ∑ n in subset, x n * x n := by
+  set f := (fun (n) ↦ x n * x n)
+  let p (s) := 0 ≤ ∑ i in s, f i
+  have empty : p ∅ := by exact Eq.le rfl
+  classical
+    refine subset.induction_on (empty) ?_
+    intro a s ans previous
+    rw [Finset.sum_insert ans]
+    have xaxa_nonneg : 0 ≤ x a * x a  := mul_self_nonneg (x a)
+    exact add_nonneg xaxa_nonneg previous
 
 -- ### definition 2.2
 theorem positive_definitenessA (x : (N → ℝ)) : 0 ≤ dotProduct x x := by
   unfold dotProduct
   exact positive_definiteness_lemma x Finset.univ
-
-
 
 theorem positive_definitenessB (x : (N → ℝ)) : x = 0 ↔ dotProduct x x = 0 := by
   unfold dotProduct
@@ -82,41 +63,21 @@ theorem symmetry (x y : (N → ℝ)) : dotProduct x y = dotProduct y x := by
   conv => left; right; intro n; rw [mul_comm]
   done
 
-theorem bilinearity (a b : ℝ) (x y z : (N → ℝ)) : ((dotProduct ((a • x) + (b • y)) z) = a * (dotProduct x z) + b * (dotProduct y z)) := by
+theorem bilinearity (a b : ℝ) (x y z : (N → ℝ)) :
+    (dotProduct ((a • x) + (b • y)) z)
+    = a * (dotProduct x z) + b * (dotProduct y z) := by
   unfold dotProduct
   simp only [Pi.add_apply, Pi.smul_apply, smul_eq_mul]
   simp [Finset.mul_sum,←Finset.sum_add_distrib]
-  suffices  ∀n, ((a * x n + b * y n) * z n = (a * (x n * z n) + b * (y n * z n)) ) by
+  suffices ∀n, (a * x n + b * y n) * z n = a * (x n * z n) + b * (y n * z n) by
     simp_rw [this]
   intro n
   ring
 
 
--- class InnerSpace (V : Type) extends AddCommGroup V, Module ℝ V where
---   inner : V → V → ℝ
---   positive_definitenessA (x : V) : 0 ≤ inner x x
---   positive_definitenessB (x : V) : x = 0 ↔ inner x x = 0
---   symmetry (x y : V) : inner x y = inner y x
---   bilinearity (a b : ℝ) (x y z : V) : ((inner ((a • x) + (b • y)) z) = a * (inner x z) + b * (inner y z))
 
--- instance : Module ℝ (N → ℝ) where
---   add_smul := sorry
---   zero_smul := sorry
-
--- instance : AddCommGroup (N → ℝ) where
---   add_comm := sorry
-
-
--- instance : InnerSpace (N → ℝ) where
---   inner := dotProduct
---   positive_definitenessA (x : (N → ℝ)) : 0 ≤ inner x x := by sorry
---   positive_definitenessB (x : (N → ℝ)) : x = 0 ↔ inner x x = 0 := by sorry
---   symmetry (x y : (N → ℝ)) : inner x y = inner y x := by sorry
---   bilinearity (a b : ℝ) (x y z : (N → ℝ)) : ((inner ((a • x) + (b • y)) z) = a * (inner x z) + b * (inner y z)) := by sorry
-
-
-
-lemma linearity (a : ℝ) (x y : (N → ℝ)) : (dotProduct (a • x) y) = a * (dotProduct x y) := by
+lemma linearity (a : ℝ) (x y : (N → ℝ)) :
+  (dotProduct (a • x) y) = a * (dotProduct x y) := by
   have := bilinearity a 0 x 0 y
   simp only [smul_zero, add_zero, smul_eq_mul, zero_mul] at this
   exact this
@@ -124,10 +85,13 @@ lemma linearity (a : ℝ) (x y : (N → ℝ)) : (dotProduct (a • x) y) = a * (
 
 
 /--the matrix x yᵀ-/
-def mul_transpose (x y : (N → ℝ)) : (N → ℝ) → (N → ℝ) := (fun (v : (N → ℝ)) ↦ ((dotProduct y v)) • x)
+def mul_transpose (x y : (N → ℝ)) : (N → ℝ) → (N → ℝ) :=
+  (fun (v : (N → ℝ)) ↦ ((dotProduct y v)) • x)
 
+/-- span {x}-/
 def singleton_span (x : (N → ℝ)) := Set.range (fun (t : ℝ) ↦ t • x)
 
+/-- N(A) -/
 def nullspace (A : (N → ℝ) → (N → ℝ)) := {v | A v = 0}
 
 variable (a b : (N → ℝ))
@@ -142,7 +106,6 @@ example : Set.range (mul_transpose a b) = singleton_span a := by
   simp only [Set.mem_range]
   rw [← @exists_exists_eq_and _ _ (dotProduct b ·) (· • a = p)]
   -- ⊢ (∃ y, (∃ w, dotProduct b w = y) ∧ a • y = p) ↔ ∃ y, a • y = p
-  -- ⊢ (∃ y, (∃ w, dotProduct b w = y) ∧ y • a = p) ↔ ∃ y, y • a = p
   suffices (∀y, (∃ w, dotProduct b w = y)) by {
     simp only [this,true_and]
   }
@@ -159,10 +122,6 @@ example : Set.range (mul_transpose a b) = singleton_span a := by
   use ((y / q) • b)
   exact spec_w y
 
-
-
-
-
 -- excercise 4b
 -- N(A) = {x | bᵀx = 0}
 example : nullspace (mul_transpose a b) = {v | dotProduct b v = 0} := by
@@ -175,9 +134,5 @@ example : nullspace (mul_transpose a b) = {v | dotProduct b v = 0} := by
   intro a0
   exfalso
   exact ha a0
-
-
-
-
 
 end Excercise1
