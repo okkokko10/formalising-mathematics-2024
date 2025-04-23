@@ -50,7 +50,7 @@ example (X : Type) (S : Set X) (hS : S.Finite) : S = S := by
 -- sets is finite?
 example (X : Type) (S : Set X) (T : Set X) (hs : Set.Finite S) (ht : T.Finite) : (S ∪ T).Finite :=
   by
-  sorry
+  exact Set.Finite.union hs ht
 
 /-
 But Lean has another way to do finite subsets.
@@ -132,4 +132,17 @@ example (n : ℕ) : ∑ i in Finset.range n, (i : ℚ) ^ 2 = (n : ℚ) * (n - 1)
 
 -- See if you can can sum the first n cubes.
 example (n : ℕ) : ∑ i in Finset.range n, (i : ℚ) ^ 3 = (n : ℚ) ^ 2 * (n - 1) ^ 2 / 4 := by
-  sorry
+
+  induction' n with d hd
+  ·
+    simp only [Nat.zero_eq, Finset.range_zero, Finset.sum_empty]
+    ring
+    -- simp only [Nat.zero_eq, Finset.range_zero, Finset.sum_empty, CharP.cast_eq_zero, ne_eq,
+    -- OfNat.ofNat_ne_zero, not_false_eq_true, zero_pow', zero_sub, even_two, Even.neg_pow, one_pow,
+    -- mul_one, zero_div]
+
+  ·
+    rw [Finset.sum_range_succ]
+    rw [hd]
+    simp only [Nat.cast_succ, add_sub_cancel]
+    ring

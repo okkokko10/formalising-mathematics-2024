@@ -48,7 +48,25 @@ example : f.Bijective ↔
 -- please ask. There's lots of little Lean tricks which make this
 -- question not too bad, but there are lots of little pitfalls too.
 example : (∃ g : Y → X, f ∘ g = id ∧ g ∘ f = id) → f.Bijective := by
-  sorry
+  intro ⟨g,⟨fg,gf⟩⟩
+  constructor
+  ·
+    unfold Function.Injective
+    intros a1 a2 f_f
+    change id _ = id _
+    rw [←gf]
+    simp only [Function.comp_apply]
+    rw [f_f]
+  ·
+    unfold Function.Surjective
+    intro b
+    use g b
+    change _ = id _
+    rw [←fg]
+    rfl
+
+
+
 
 -- The other way is harder in Lean, unless you know about the `choose`
 -- tactic. Given `f` and a proof that it's a bijection, how do you
@@ -56,4 +74,32 @@ example : (∃ g : Y → X, f ∘ g = id ∧ g ∘ f = id) → f.Bijective := by
 -- `g`, and the `choose` tactic does this for you.
 -- If `hfs` is a proof that `f` is surjective, try `choose g hg using hfs`.
 example : f.Bijective → ∃ g : Y → X, f ∘ g = id ∧ g ∘ f = id := by
-  sorry
+
+  intro ⟨fInj,fSurj⟩
+  unfold Function.Surjective at fSurj
+  unfold Function.Injective at fInj
+
+  choose g hg using fSurj
+  use g
+  constructor
+  ·
+    exact funext hg
+  ·
+    ext x
+    simp
+    apply fInj
+    apply hg
+    done
+
+
+  -- let g : Y → X := fun y ↦ (fSurj y).choose
+  -- use g
+  -- constructor
+  -- · ext y
+  --   -- simp only [Function.comp_apply, id_eq]
+  --   exact (fSurj y).choose_spec
+  -- · ext x
+  --   -- have other :=
+  --   simp
+  --   apply fInj
+  --   exact (fSurj (f x)).choose_spec
