@@ -69,7 +69,61 @@ There is of course much more API, but if you want to get some practice you can
 just develop some of it yourself from these two functions.
 -/
 example : (mk' N).ker = N := by
-  sorry
+  -- exact ker_mk' N
+  ext g
+  conv => {
+    left
+    conv =>
+      change mk' N g = 1
+      right
+      change mk' N 1
+    rw [mk'_eq_mk' N]
+    conv => {
+      right
+      intro z
+      conv => left; rw [←Subgroup.inv_mem_iff]
+      right
+      tactic =>
+        change _ = (g = z⁻¹)
+        rw [eq_iff_iff]
+        rw [mul_eq_one_iff_eq_inv]
+    }
+    conv => {
+      right; intro z
+
+      tactic =>{
+        change _ = (g ∈ N ∧ g = z⁻¹)
+        simp only [eq_iff_iff, and_congr_left_iff]
+        intro gz
+        rw [gz]
+      }
+    }
+    -- tactic =>{
+    --   change _ = (∃ z, g ∈ N ∧ g = z⁻¹)
+    --   rw [eq_iff_iff]
+    -- }
+
+
+
+  }
+  simp only [exists_and_left, and_iff_left_iff_imp]
+  intro _
+  use g⁻¹
+  exact inv_eq_iff_eq_inv.mp rfl
+
+  -- constructor
+  -- · intro ke
+  --   have im : mk' N g = 1 := ke
+  --   have nn : mk' N 1 = 1 := rfl
+  --   have ⟨z,zN,gz1⟩ := (mk'_eq_mk' N).mp (Eq.trans im nn)
+  --   have zinv : z⁻¹ ∈ N := by exact Subgroup.inv_mem N zN
+  --   have gisz: g = z⁻¹ := by exact mul_eq_one_iff_eq_inv.mp gz1
+  --   rw [gisz]
+  --   exact zinv
+  --   -- exact (eq_one_iff g).mp ke
+  -- intro gN
+
+
 
 /-
 # Universal properties
@@ -80,6 +134,12 @@ such that the composite map `ψ ∘ (QuotientGroup.mk' N)` equals `φ`. Given `�
 this property is called `QuotientGroup.lift N φ h`, where `h` is a proof of `∀ x, x ∈ N → φ x = 1`.
 -/
 variable (H : Type) [Group H] (φ : G →* H) (h : ∀ x, x ∈ N → φ x = 1)
+/- Okko:
+explanation:
+ψ = φ ∘ (mk' N)⁻¹
+`h` is required because (mk' N)⁻¹ ∘ (mk' N) returns the equivalence class i.e. coset of N.
+
+-/
 
 example : G ⧸ N →* H :=
   lift N φ h -- the full name of this function is QuotientGroup.lift
@@ -111,7 +171,26 @@ variable {P : Subgroup H} [P.Normal]
 def ρ (h : N.map φ ≤ P) : G ⧸ N →* H ⧸ P :=
   lift N ((mk' P).comp φ) (by
     -- we are using `lift` so we need to supply the proof that `(mk' P).comp φ` kills `N`
-    sorry
+    change ∀n ∈ N, (MonoidHom.comp (mk' P) φ) n = 1
+    intro n nN
+
+    change (mk' P) (φ n) = 1
+    have h2: (∀n ∈ N, φ n ∈ P) := by
+      intro m mN
+      apply h
+      exact Subgroup.mem_map_of_mem φ mN
+    simp only [mk'_apply, eq_one_iff]
+    exact h2 n nN
+
+
+
+
+
+    -- rw [MonoidHom.coe_comp, coe_mk', Function.comp_apply, eq_one_iff]
+    -- apply h
+    -- exact Subgroup.mem_map_of_mem φ nN
+
+
   )
 
 -- Now let's prove that `ρ ∘ mk' N = mk' P ∘ φ`
