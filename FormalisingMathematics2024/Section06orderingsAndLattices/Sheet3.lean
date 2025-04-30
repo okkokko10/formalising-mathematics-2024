@@ -26,6 +26,32 @@ this question.
 example (L : Type) [Lattice L] :
     (∀ a b c : L, a ⊔ b ⊓ c = (a ⊔ b) ⊓ (a ⊔ c)) ↔ ∀ a b c : L, a ⊓ (b ⊔ c) = a ⊓ b ⊔ a ⊓ c := by
 
+  constructor
+  intro h a b c
+  by_cases bc : b ≤ c
+  · have w1 := inf_le_inf_left a bc
+    have w2 : a ⊓ b ⊔ a ⊓ c = a ⊓ c := by exact sup_eq_right.mpr w1
+    rw [w2]
+    -- have w3 : c ≤ b ⊔ c := by exact le_sup_right
+    -- have w4 := inf_le_inf_left a w3
+    -- refine le_antisymm ?_ w4
+    -- simp only [le_inf_iff, inf_le_left, true_and]
+    simp only [ge_iff_le, bc, sup_of_le_right]
+    done
+  ·
+    -- have :
+    simp only [h, inf_le_left, sup_of_le_right]
+
+
+    done
+
+  sorry
+  done
+
+
+example (L : Type) [Lattice L] :
+    (∀ a b c : L, a ⊔ b ⊓ c = (a ⊔ b) ⊓ (a ⊔ c)) ↔ ∀ a b c : L, a ⊓ (b ⊔ c) = a ⊓ b ⊔ a ⊓ c := by
+
 
   constructor
   · intros h a b c
