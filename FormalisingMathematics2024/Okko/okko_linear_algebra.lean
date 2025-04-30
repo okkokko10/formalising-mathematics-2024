@@ -21,6 +21,19 @@ open BigOperators
 /-- x y ↦ xᵀy -/
 def dotProduct : (N → ℝ) → (N → ℝ) → ℝ := fun x y ↦ ∑ n, (x n) * (y n)
 
+structure InnerProduct (X : Type) [AddCommGroup X] [Module ℝ X] where
+  toFun : X → X → ℝ
+  positive_definitenessA : ∀(x : X), 0 ≤ toFun x x
+  positive_definitenessB : ∀(x : X), x = 0 ↔ toFun x x = 0
+  symmetry : ∀(x y), toFun x y = toFun y x
+  bilinearity : ∀ (a b : ℝ) (x y z : X),
+    (toFun ((a • x) + (b • y)) z)
+    = a * (toFun x z) + b * (toFun y z)
+variable {X : Type} [AddCommGroup X] [Module ℝ X]
+
+instance : CoeFun (InnerProduct X) (fun _ ↦ X → X → ℝ) where
+  coe w := w.toFun
+
 
 lemma positive_definiteness_lemma (x : (N → ℝ)) (subset : Finset N) :
   0 ≤ ∑ n in subset, x n * x n := by
@@ -76,6 +89,14 @@ theorem bilinearity (a b : ℝ) (x y z : (N → ℝ)) :
 
 
 
+noncomputable def dot : InnerProduct (N → ℝ) where
+  toFun := dotProduct
+  positive_definitenessA := positive_definitenessA
+  positive_definitenessB := positive_definitenessB
+  symmetry  := symmetry
+  bilinearity := bilinearity
+
+
 lemma linearity (a : ℝ) (x y : (N → ℝ)) :
   (dotProduct (a • x) y) = a * (dotProduct x y) := by
   have := bilinearity a 0 x 0 y
@@ -83,6 +104,11 @@ lemma linearity (a : ℝ) (x y : (N → ℝ)) :
   exact this
 
 
+theorem InnerProduct.linearity (prod : InnerProduct X) (a : ℝ) (x y : X) :
+  (prod (a • x) y) = a * (prod x y) := by
+  have := prod.bilinearity a 0 x 0 y
+  simp only [smul_zero, add_zero, smul_eq_mul, zero_mul] at this
+  exact this
 
 /--the matrix x yᵀ-/
 def mul_transpose (x y : (N → ℝ)) : (N → ℝ) → (N → ℝ) :=
@@ -136,3 +162,10 @@ example : nullspace (mul_transpose a b) = {v | dotProduct b v = 0} := by
   exact ha a0
 
 end Excercise1
+
+section Excercise3
+
+
+
+
+end Excercise3
