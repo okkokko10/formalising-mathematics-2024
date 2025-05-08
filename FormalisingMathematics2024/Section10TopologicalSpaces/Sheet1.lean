@@ -57,19 +57,47 @@ splitting into cases in this proof.
 example : TopologicalSpace X where
   IsOpen (s : Set X) := s = ∅ ∨ s = Set.univ -- empty set or whole thing
   isOpen_univ := by
-    sorry -- use `dsimp`
+    dsimp only
+    right
+    triv
+    -- use `dsimp`
   isOpen_inter := by
-    sorry -- use `cases'`
+    intros s t f g
+    cases' g with h h
+    ·
+      rw [h]
+      simp only [Set.inter_empty]
+      tauto
+    rw [h]
+    simp only [Set.inter_univ]
+    exact f
+    -- use `cases'`
   isOpen_sUnion := by
     intro F
+    simp only [Set.sUnion_eq_empty]
+    intro f
+    by_cases h : Set.univ ∈ F
+    · right
+      have := Set.subset_sUnion_of_mem h
+      exact Set.univ_subset_iff.mp this
+    left
+    intro s sF
+    have t1:= f s sF
+    have t2: s ≠ Set.univ := by exact ne_of_mem_of_not_mem sF h
+    simp [t2] at t1
+    exact t1
     -- do cases on whether Set.univ ∈ F
-    sorry
+
 
 -- `isOpen_empty` is the theorem that in a topological space, the empty set is open.
 -- Can you prove it yourself? Hint: arbitrary unions are open
 
 example (X : Type) [TopologicalSpace X] : IsOpen (∅ : Set X) := by
-  sorry
+
+
+  have := TopologicalSpace.isOpen_sUnion (∅ : Set (Set X))
+  simp at this
+  exact this
 
 -- The reals are a topological space. Let's check Lean knows this already
 #synth TopologicalSpace ℝ
@@ -83,13 +111,36 @@ def Real.IsOpen (s : Set ℝ) : Prop :=
 
 -- Now let's prove the axioms
 lemma Real.isOpen_univ : Real.IsOpen (Set.univ : Set ℝ) := by
-  sorry
+  unfold IsOpen
+  -- simp only [Set.mem_univ]
+  norm_num
+  use 1
+  norm_num
+
 
 lemma Real.isOpen_inter (s t : Set ℝ) (hs : IsOpen s) (ht : IsOpen t) : IsOpen (s ∩ t) := by
-  sorry
+  unfold IsOpen at *
+  intro x xst
+  obtain ⟨dt,dt_pos, ht'⟩ := ht x (Set.mem_of_mem_inter_right xst)
+  obtain ⟨ds,ds_pos, hs'⟩ := hs x (Set.mem_of_mem_inter_left xst)
+  let d := min ds dt
+  have hds : d ≤ ds := by exact min_le_left ds dt
+  have hdt : d ≤ dt := by exact min_le_right ds dt
+  have d_pos : d > 0 := by exact lt_min ds_pos dt_pos
+  refine ⟨d,d_pos,fun y ⟨w1,w2⟩ ↦ ⟨hs' y ⟨?_,?_⟩,ht' y ⟨?_,?_⟩⟩⟩
+    <;> linarith only [hds, hdt, w1, w2]
+
 
 lemma Real.isOpen_sUnion (F : Set (Set ℝ)) (hF : ∀ s ∈ F, IsOpen s) : IsOpen (⋃₀ F) := by
-  sorry
+  unfold IsOpen at *
+  intro x xU
+  have ⟨s,sF,xs⟩ := xU
+  specialize hF s sF x xs
+  obtain ⟨d,d_pos,hF'⟩ := hF
+  refine ⟨d,d_pos,fun y w ↦ ?_⟩
+  have := hF' y w
+  -- simp_rw [Set.mem_sUnion]
+  refine ⟨s, sF, this⟩
 
 -- now we put everything together using the notation for making a structure
 example : TopologicalSpace ℝ where

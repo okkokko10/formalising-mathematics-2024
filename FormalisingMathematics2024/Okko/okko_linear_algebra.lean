@@ -29,11 +29,43 @@ structure InnerProduct (X : Type) [AddCommGroup X] [Module ℝ X] where
   bilinearity : ∀ (a b : ℝ) (x y z : X),
     (toFun ((a • x) + (b • y)) z)
     = a * (toFun x z) + b * (toFun y z)
-variable {X : Type} [AddCommGroup X] [Module ℝ X]
+
+variable {X Y Z : Type} [AddCommGroup X] [Module ℝ X] [AddCommGroup Y] [Module ℝ Y] [AddCommGroup Z] [Module ℝ Z]
+
+-- instance : CoeFun (InnerProduct X) (fun _ ↦ X → X → ℝ) where
+--   coe w := w.toFun
 
 instance : CoeFun (InnerProduct X) (fun _ ↦ X → X → ℝ) where
   coe w := w.toFun
 
+def InnerProduct.bilinearMapRight (prod : InnerProduct X) (a : X) : (X →ₗ[ℝ] ℝ) where
+  toFun := fun b ↦ (prod a b)
+  map_add' := by
+    intro x y
+    simpa [prod.symmetry a _, one_smul, one_mul] using prod.bilinearity 1 1 x y a
+  map_smul' := by
+    intro r x
+    simpa [prod.symmetry a _, RingHom.id_apply, smul_eq_mul, smul_zero, add_zero,
+      zero_mul] using prod.bilinearity r 0 x 0 a
+
+def InnerProduct.toBilinearMap (prod : InnerProduct X) : (X →ₗ[ℝ] X →ₗ[ℝ] ℝ) := {
+    toFun := prod.bilinearMapRight
+    map_add' := by
+      intro x y
+      ext v
+      simpa only [LinearMap.add_apply, one_smul, one_mul] using prod.bilinearity 1 1 x y v
+    map_smul' := by
+      intro r x
+      ext v
+      simpa only [RingHom.id_apply, LinearMap.smul_apply, smul_eq_mul, smul_zero, add_zero,
+        zero_mul] using prod.bilinearity r 0 x 0 v
+    }
+
+instance : Coe (InnerProduct X) (X →ₗ[ℝ] X →ₗ[ℝ] ℝ) where
+  coe w : (X →ₗ[ℝ] X →ₗ[ℝ] ℝ) := w.toBilinearMap
+
+-- @[simp]
+theorem InnerProduct.bilinear_ext {prod : InnerProduct X} (x y): prod x y = prod.toBilinearMap x y := rfl
 
 lemma positive_definiteness_lemma (x : (N → ℝ)) (subset : Finset N) :
   0 ≤ ∑ n in subset, x n * x n := by
@@ -113,6 +145,114 @@ theorem InnerProduct.linearity (prod : InnerProduct X) (a : ℝ) (x y : X) :
 /--the matrix x yᵀ-/
 def mul_transpose (x y : (N → ℝ)) : (N → ℝ) → (N → ℝ) :=
   (fun (v : (N → ℝ)) ↦ ((dotProduct y v)) • x)
+
+
+
+/--the matrix x yᵀ-/
+def InnerProduct.matrix (prod : InnerProduct Y) (x : X) (y : Y) : Y →ₗ[ℝ] X where
+  toFun := (prod y · • x)
+  map_add' := by
+    intro a b
+    simp only
+
+    simp_rw [prod.symmetry y]
+    rw [←Module.add_smul]
+    have := prod.bilinearity 1 1 a b y
+    simp only [one_smul, one_mul] at this
+    rw [this]
+  map_smul' := by
+    intro r z
+    simp only [RingHom.id_apply]
+    have := prod.bilinearity r 0 z 0 y
+    simp [prod.symmetry] at this
+    rw [this]
+    exact mul_smul r (prod y z) x
+
+@[simp]
+theorem InnerProduct.matrix_fun (prod : InnerProduct Y) (x : X) (y : Y) : prod.matrix x y = (prod y · • x) := rfl
+
+
+/--xaᵀ bzᵀ = aᵀb * xzᵀ -/
+theorem InnerProduct.matrix_comp {prodY : InnerProduct Y} {prodZ : InnerProduct Z} {x : X} {a b : Y} {z : Z} :
+    (prodY.matrix x a) ∘ₗ (prodZ.matrix b z) = (prodY a b) • (prodZ.matrix x z) := by
+  ext v
+  -- rewrite [LinearMap.comp_apply]
+  -- simp only [LinearMap.smul_apply]
+  -- rw [mul_transpose]
+  simp only [LinearMap.coe_comp, matrix_fun, Function.comp_apply, LinearMap.smul_apply]
+  simp only [InnerProduct.bilinear_ext]
+  rw [map_smul,← smul_assoc, smul_eq_mul, mul_comm, smul_eq_mul]
+  done
+
+def InnerProduct.rowVector (prod : InnerProduct X) (x : X) : (X →ₗ[ℝ] ℝ) := prod.matrix (1 : ℝ) x
+
+-- @[simp]
+theorem InnerProduct.rowVector_eq (prod : InnerProduct X) (x : X) : prod x = prod.rowVector x := by
+  ext v
+  unfold rowVector
+  simp only [matrix_fun, smul_eq_mul, mul_one]
+
+
+-- todo: coercion
+instance RealProduct : InnerProduct ℝ where
+  toFun := (· * ·)
+  positive_definitenessA := by exact fun x ↦ mul_self_nonneg x
+  positive_definitenessB := by exact fun x ↦ Iff.symm mul_self_eq_zero
+  symmetry := by exact fun x y ↦ mul_comm x y
+  bilinearity := by
+    intros
+    simp only [smul_eq_mul]
+    ring
+
+
+/-- all inner products of ℝ are like this-/
+example : ∀(d : InnerProduct ℝ),∃e > 0, d.toFun =  ( · * · * e) := by
+  intro d
+  use (d 1 1)
+  constructor
+  · rw [gt_iff_lt]
+    have dA:= d.positive_definitenessA 1
+    have dB:= d.positive_definitenessB 1
+    simp only [one_ne_zero, false_iff] at dB
+    exact Ne.lt_of_le' dB dA
+  ext a b
+  simp_rw [d.bilinear_ext]
+  nth_rw 1 [←mul_one a,←mul_one b]
+  simp_rw [←smul_eq_mul,map_smul]
+  simp only [LinearMap.smul_apply, smul_eq_mul]
+  ring
+
+def InnerProduct.columnVector (x : X) : (ℝ →ₗ[ℝ] X) := RealProduct.matrix x (1 : ℝ)
+
+instance : Coe X (ℝ →ₗ[ℝ] X) where
+  coe x := InnerProduct.columnVector x
+
+
+theorem InnerProduct.asMatrices {prod : InnerProduct X} {x y : X} :
+    prod x y = prod.rowVector x ∘ₗ InnerProduct.columnVector y := by
+  ext
+  simp
+  unfold columnVector
+  simp only [matrix_fun, rowVector_eq, smul_eq_mul, map_smul]
+
+-- def InnerProduct.vector_transpose {x : X}
+
+
+-- theorem InnerProduct.makeMatrix (prod : InnerProduct Y) (mat : Y →ₗ[ℝ] X) :
+--   prod.matrix x y = (prod y · • x)
+
+-- /-- xᵀAᵀ = (Ax)ᵀ -/
+theorem InnerProduct.transpose_exists (prodX : InnerProduct X) (prodY : InnerProduct Y) (mat : X →ₗ[ℝ] Y) :
+    ∃ (matT : Y →ₗ[ℝ] X), ∀x, (prodX.rowVector x) ∘ₗ matT = prodY.rowVector (mat x) := by
+
+
+
+  sorry
+
+-- def InnerProduct.transpose (prod : InnerProduct X) (mat : Y →ₗ[ℝ] X) :  X →ₗ[ℝ] Y :=
+
+
+
 
 /-- span {x}-/
 def singleton_span (x : (N → ℝ)) := Set.range (fun (t : ℝ) ↦ t • x)
