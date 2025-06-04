@@ -309,3 +309,349 @@ section Excercise3
 
 
 end Excercise3
+
+
+section Excercise10
+
+#check Matrix
+
+
+#check InnerProductSpace.norm_sq_eq_inner
+
+#check inner_self_eq_norm_sq_to_K
+
+#check bilinearity
+
+example {n : ℕ} {M : Type} [NormedAddCommGroup M] [Module ℝ M] [InnerProductSpace ℝ M]
+    (y b : M) (y0 : y ≠ 0) (b0 : b ≠ 0) (β : ℝ) :
+    @IsROrC.ofReal ℝ Real.isROrC ‖ (⟪y, b ⟫_ℝ / ⟪y, y⟫_ℝ) • y - b‖ ^ 2 ≤ @IsROrC.ofReal ℝ Real.isROrC ‖β • y - b‖ ^ 2 := by
+
+  set α := (⟪y, b ⟫_ℝ / ⟪y, y⟫_ℝ) with a_def
+  -- simp_rw [inner_self_eq_norm_sq_to_K y]
+
+  rw [←inner_self_eq_norm_sq_to_K]
+  rw [←inner_self_eq_norm_sq_to_K]
+  simp_rw [@real_inner_sub_sub_self]
+
+
+  sorry
+
+-- can you make an orthonormal basis always?
+
+open BigOperators
+
+variable {V : Type} [NormedAddCommGroup V] [Module ℝ V]
+variable {N : Type} [Fintype N] [DecidableEq N]
+variable {N' : Type} [Fintype N'] [DecidableEq N']
+
+def apply_basis (bas : N → V) (c : N → ℝ) := ∑ i : N, c i • bas i
+
+-- is x a linear combination of bas.
+def hasBasis (bas : N → V) (x : V) := ∃ c : N → ℝ, x = apply_basis bas c
+
+def linearIndependence (bas : N → V) := ∀ c : N → ℝ, c = 0 ↔ 0 = apply_basis bas c
+
+def orthogonalPair {N1 : Type} (product : V → V → ℝ) (bas : N1 → V) (a b : N1) := a ≠ b → product (bas a) (bas b) = 0
+def orthogonal {N1 : Type} (product : V → V → ℝ) (bas : N1 → V) := ∀a b : N1, orthogonalPair product bas a b
+
+def normal {N1 : Type} (product : V → V → ℝ) (bas : N1 → V) := ∀a : N1, product (bas a) (bas a) = 1
+
+def BasisShiftAdd (bas : N → V) (i j : N) (r : ℝ) := (fun k : N ↦ bas k + if k = i then  r • bas j else 0)
+
+def BasisShiftScale (bas : N → V) (i : N) (r : ℝ) := (fun k : N ↦ (if k = i then r else 1) • bas k)
+
+def WithBasis (bas : N → V) (X : Subspace ℝ V) := ∀x, x ∈ X ↔ hasBasis bas x
+
+-- unsure
+theorem withBasis_eq_iff_hasBasis_eq (bas1 bas2 : N → V) : (hasBasis bas1 = hasBasis bas2) ↔ (WithBasis bas1 = WithBasis bas2) := by
+  unfold WithBasis
+  constructor
+  · intro h
+    rw [h]
+  · intro h
+    simp at h
+    -- have qq(X) : ∀ (x : V), x ∈ X ↔ hasBasis bas1 x
+    sorry
+
+theorem basisContainsItself (bas : N → V) (i : N) : hasBasis bas (bas i) := by
+
+  use (fun k : N ↦ if k = i then 1 else 0)
+  unfold apply_basis
+  simp [ite_zero_smul, one_smul, Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+  done
+
+theorem basisContainsApplications (bas : N → V) (c : N → ℝ) : hasBasis bas (apply_basis bas c) := by
+  unfold hasBasis
+  tauto
+
+
+-- (lb1 : linearIndependence bas1) (lb2 : linearIndependence bas2)
+theorem basisLE (bas1 : N → V) (bas2 : N' → V) :
+    (hasBasis bas1 ≤ hasBasis bas2) ↔ ∀ i : N, hasBasis bas2 (bas1 i) := by
+
+  rw [@Pi.le_def]
+  constructor
+  intro le i
+  specialize le (bas1 i)
+  exact le (basisContainsItself _ _)
+  intro h x
+  intro ⟨c,cx⟩
+  unfold hasBasis at h ⊢
+  have (i : N) : bas1 i = ∑ j : N', (h i).choose j • bas2 j := by
+    exact (h i).choose_spec
+
+  unfold apply_basis at *
+  simp_rw [this] at cx
+  simp_rw [Finset.smul_sum] at cx
+  rw [@Finset.sum_comm] at cx
+  simp_rw [← smul_assoc] at cx
+  simp_rw [←Finset.sum_smul] at cx
+  rw [cx]
+  use (fun x ↦ ∑ i : N, c i • Exists.choose (h i) x)
+
+theorem basisEQ (bas1 bas2 : N → V)  :
+    (hasBasis bas1 = hasBasis bas2) ↔ ((∀ i : N, hasBasis bas2 (bas1 i)) ∧ ∀ i : N, hasBasis bas1 (bas2 i)) := by
+  simp [←basisLE]
+  exact le_antisymm_iff
+
+lemma BasisShiftAdd_same (bas : N → V) {i j : N} (hij : i ≠ j) (r : ℝ) :
+    hasBasis (BasisShiftAdd bas i j r) = hasBasis bas := by
+  rw [basisEQ _ _]
+  unfold hasBasis
+  unfold BasisShiftAdd
+  unfold apply_basis
+  constructor
+  ·
+    intro k
+
+    split
+    ·
+      use (fun jj ↦ (if jj = k then 1 else 0) + (if jj = j then r else 0))
+      simp_rw [add_smul]
+      rw [Finset.sum_add_distrib]
+      simp only [ite_zero_smul, one_smul, Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+    · use (fun jj ↦ if jj = k then 1 else 0)
+      simp [ite_zero_smul, one_smul, Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+  · intro k
+    simp only [smul_add, smul_ite_zero]
+    simp_rw [Finset.sum_add_distrib]
+    simp only [Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+
+    by_cases h : k = i
+    ·
+      rw [h]
+      use (fun x ↦ if x = j then -r else 0) + (fun x ↦ if x = i then 1 else 0)
+      simp
+      simp [hij]
+      simp_rw [add_smul]
+      simp_rw [Finset.sum_add_distrib]
+      simp [ite_zero_smul, neg_smul, Finset.sum_ite_eq', Finset.mem_univ, ite_true, one_smul,
+        neg_add_cancel_comm]
+    ·
+      use (fun x ↦ if x = k then 1 else 0)
+      simp
+      intro ik
+      exact (h ik.symm).elim
+
+lemma BasisShiftScale_same (bas : N → V) (i : N) {r : ℝ} (hr : r ≠ 0) :
+    hasBasis (BasisShiftScale bas i r) = hasBasis bas := by
+  rw [basisEQ _ _]
+  unfold hasBasis
+  unfold BasisShiftScale
+  unfold apply_basis
+  constructor
+  · intro k
+    split
+    ·
+      use (fun q : N ↦ (if q = k then r else 0))
+      simp
+    · use (fun q : N ↦ (if q = k then 1 else 0))
+      simp
+
+  · intro k
+    let w := if k = i then r⁻¹ else 1
+    use (fun q : N ↦ (if q = k then w else 0))
+    simp
+    aesop
+
+lemma BasisShiftScale_linInd (bas : N → V) (lb : linearIndependence bas) (i : N) {r : ℝ}  (hr : r ≠ 0) : linearIndependence (BasisShiftScale bas i r) := by
+
+  sorry
+
+lemma BasisShiftAdd_linInd (bas : N → V) (lb : linearIndependence bas) {i j : N} (hij : i ≠ j) (r : ℝ) :
+    linearIndependence (BasisShiftAdd bas i j r) := by
+
+  sorry
+
+
+-- (hc : c i ≠ 0)
+def BasisShiftFree (bas : N → V) (i : N) (c : N → ℝ) := fun k : N ↦ (if k = i then apply_basis bas c else bas k)
+
+-- lemma BasisShiftFree_same
+example (bas : N → V) (i : N) (c : N → ℝ) (hc : c i ≠ 0) :
+    hasBasis (BasisShiftFree bas i c) = hasBasis bas := by
+  rw [basisEQ _ _]
+  unfold hasBasis
+  unfold BasisShiftFree
+  unfold apply_basis
+  simp only
+  constructor
+  · intro k
+    split
+    {
+      use c
+    }
+    {
+      use (fun q : N ↦ (if q = k then 1 else 0))
+      simp
+    }
+  · intro k
+
+    by_cases h : k = i
+    {
+      rw [h]
+      have (x): (if x = i then ∑ i : N, c i • bas i else bas x) = ((if x = i then ∑ i : N, c i • bas i else 0) + if x = i then 0 else bas x) := by
+        aesop
+      simp_rw [this]
+      simp
+      simp_rw [Finset.sum_add_distrib]
+      simp
+      have (x): (if x = i then 0 else bas x) = bas x - if x = i then bas x else 0 := by sorry
+      simp [this]
+      simp [smul_sub]
+
+      suffices ∃ c_1 : N → ℝ, bas i = c_1 i • (∑ j : N, c j • bas j - bas i) + ∑ x : N, c_1 x • bas x by
+        simp_rw [←add_sub_assoc]
+        simp_rw [add_sub_right_comm]
+        simp_rw [←smul_sub]
+        exact this
+      have (c_1 : N → ℝ): c_1 i • (∑ j : N, c j • bas j - bas i) + ∑ x : N, c_1 x • bas x = bas i := by
+        calc
+          c_1 i • (∑ j : N, c j • bas j - bas i) + ∑ x : N, c_1 x • bas x = c_1 i • (∑ j : N, c j • bas j - bas i) + ∑ x : N, c_1 x • bas x := sorry
+          _ = c_1 i • (∑ j : N, c j • bas j ) - c_1 i • bas i + ∑ x : N, c_1 x • bas x := sorry
+          _ =  (∑ j : N, c_1 i • c j • bas j ) - c_1 i • bas i + ∑ x : N, c_1 x • bas x := sorry
+          _ =  (∑ j : N, c_1 i • c j • bas j ) + ∑ x : N, c_1 x • bas x - c_1 i • bas i := sorry
+          _ =  (∑ x : N, (c_1 i • c x • bas x + c_1 x • bas x) ) - c_1 i • bas i := sorry
+          _ =  (∑ x : N, ((c_1 i • c x + c_1 x) • bas x) ) - c_1 i • bas i := sorry
+
+
+        sorry
+
+      use (fun q : N ↦ (if q = i then 2 else 0))
+      simp [h]
+      sorry
+    }
+    {
+      use (fun q : N ↦ (if q = k then 1 else 0))
+      simp [h]
+    }
+
+noncomputable instance (p : N → Prop) : Fintype {x | p x} := by
+  exact Fintype.ofFinite ↑{x | p x}
+
+@[simp]
+def LimitedBasis (bas : N → V) (p : N → Prop) : ({x | p x} → V) := fun i ↦ bas i
+
+def limitedBasis_le  (bas : N → V) (p : N → Prop) : hasBasis (LimitedBasis bas p) ≤ hasBasis bas := by
+  apply (basisLE _ _).mpr
+  simp only [Set.coe_setOf, LimitedBasis, Set.mem_setOf_eq, Subtype.forall]
+  exact fun a _ ↦ basisContainsItself bas a
+
+def combinedSpace (A B : V → Prop) (x : V) := ∃a b, A a ∧ B b ∧ x = a + b
+
+-- lemma combinedSpace_cols (a : N → V) (b : N' → V) : (combinedSpace (hasBasis a) (hasBasis b))
+
+
+
+lemma hasBasis_ite (p : N → Prop) [DecidablePred p] (a b : N → V) : hasBasis (fun k ↦ if p k then a k else b k)
+    = combinedSpace (hasBasis (LimitedBasis a p)) (hasBasis (LimitedBasis b (pᶜ))) := by
+  unfold combinedSpace
+  unfold hasBasis
+  ext x
+  constructor
+  {
+    intro ⟨c,c_s⟩
+    rw [c_s]
+    use apply_basis (LimitedBasis a p) (c ·)
+    use apply_basis (LimitedBasis b pᶜ) (c ·)
+    refine ⟨?_,?_,?_⟩
+    · use (c ·)
+    · use (c ·)
+    ·
+
+      unfold apply_basis
+      simp
+      rw [← @Finset.sum_sum_elim]
+      simp
+      sorry
+  }
+  unfold apply_basis
+  simp
+  -- simp only [Set.coe_setOf, Pi.compl_apply, exists_and_left]
+
+  -- apply le_antisymm
+  -- {
+  --   rw [basisLE _ _]
+
+  --   sorry
+  -- }
+
+  sorry
+
+
+lemma BasisShiftFree_same (bas : N → V) (lb : linearIndependence bas) (i : N) (c : N → ℝ) (hc : c i ≠ 0) :
+    hasBasis (BasisShiftFree bas i c) = hasBasis bas := by
+  apply le_antisymm
+  {
+    apply (basisLE _ _).mpr
+    intro x
+    unfold BasisShiftFree
+    split
+    exact basisContainsApplications bas c
+    exact basisContainsItself bas x
+  }
+  {
+
+    apply (basisLE _ _).mpr
+    intro y
+    unfold BasisShiftFree
+    by_cases h : i = y
+    {
+      rw [h]
+      unfold hasBasis
+
+      sorry
+    }
+
+
+    sorry
+  }
+
+
+
+lemma BasisShiftFree_linInd (bas : N → V) (lb : linearIndependence bas) (i : N) (c : N → ℝ) (hc : c i ≠ 0) :
+    linearIndependence (BasisShiftFree bas i c) := by
+
+  sorry
+
+lemma BasisOneOrthogonal (product : InnerProduct V) (bas : N → V) (lb : linearIndependence bas) (i : N) :
+    ∃ obas : N → V, hasBasis obas = hasBasis bas ∧ linearIndependence obas ∧ (∀j ≠ i, obas j = bas j) ∧ (∀j ≠ i, orthogonalPair product bas i j) := by
+
+  sorry
+
+
+example {n : ℕ} (product : InnerProduct V) (bas : Fin n → V) (lb : linearIndependence bas) :
+    ∃obas : Fin n → V, hasBasis obas = hasBasis bas ∧ linearIndependence obas ∧ orthogonal product obas ∧ normal product obas
+    := by
+
+
+
+
+  -- #check ∑ i in , i
+  sorry
+
+
+
+
+
+end Excercise10
