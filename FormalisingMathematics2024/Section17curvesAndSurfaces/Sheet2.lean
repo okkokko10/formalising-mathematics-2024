@@ -27,10 +27,31 @@ theorem Complex.differentiableAt_coe
 -- Here's a harder example
 example (a : ℂ) (x : ℝ) :
     DifferentiableAt ℝ (fun y : ℝ => Complex.exp (-(a * ↑y ^ 2))) x := by
-  sorry
+  apply DifferentiableAt.comp (g := Complex.exp)
+  ·
+    exact Complex.differentiableAt_exp
+
+  ·
+    apply DifferentiableAt.comp (f:= Complex.ofReal') (g:= fun y ↦ -(a * y ^ 2))
+    · simp only [differentiableAt_neg_iff]
+      apply DifferentiableAt.const_mul
+      norm_num
+
+    apply Complex.differentiableAt_coe
+    simp only [differentiableAt_id']
 
 noncomputable def φ₁ : ℝ → ℝ × ℝ := fun x => (Real.cos x, Real.sin x)
 
-example : ContDiffOn ℝ ⊤ (fun x => (Real.cos x, Real.sin x)) (Set.Icc 0 1) := by sorry
+example : ContDiffOn ℝ ⊤ (fun x => (Real.cos x, Real.sin x)) (Set.Icc 0 1) := by
+  apply contDiffOn_top.mpr
+  intro n
+  -- intro x xS
+  refine ContDiffOn.prod ?hf ?hg
+  refine contDiffOn_of_differentiableOn ?hf.h
+  intro m mn
+  let w := (iteratedFDerivWithin ℝ m (fun x ↦ Real.cos x) (Set.Icc 0 1))
+  simp at w
+
+  sorry
 
 end Section17sheet2
