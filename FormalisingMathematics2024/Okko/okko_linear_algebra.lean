@@ -346,6 +346,50 @@ variable {N' : Type} [Fintype N'] [DecidableEq N']
 
 def apply_basis (bas : N → V) (c : N → ℝ) := ∑ i : N, c i • bas i
 
+def apply_basis' (bas : N → V) : (N → ℝ) →ₗ[ℝ] V where
+  toFun := apply_basis bas
+  map_add' := by
+    intro x y
+    unfold apply_basis
+    rw [←Finset.sum_add_distrib]
+    simp_rw [←add_smul]
+    rfl
+  map_smul' := by
+    intro r c
+    simp only [RingHom.id_apply]
+    unfold apply_basis
+    simp only [Pi.smul_apply, smul_eq_mul]
+    rw [Finset.smul_sum]
+    apply congrArg
+    ext x
+    exact mul_smul r (c x) (bas x)
+
+
+def apply_basis_left (c : N → ℝ) : (N → V) →ₗ[ℝ] V where
+  toFun := (apply_basis · c)
+  map_add' := by
+    intro x y
+    unfold apply_basis
+    rw [←Finset.sum_add_distrib]
+    simp only [Pi.add_apply, smul_add]
+  map_smul' := by
+    intro r y
+    simp only [RingHom.id_apply]
+    unfold apply_basis
+    simp only [Pi.smul_apply, smul_eq_mul]
+    rw [Finset.smul_sum]
+    apply congrArg
+    ext x
+    exact smul_algebra_smul_comm r (c x) (y x)
+
+@[simp]
+theorem coe_apply_basis' {bas : N → V} {c : N → ℝ} : apply_basis bas c = apply_basis' bas c := by rfl
+
+-- @[simp]
+theorem coe_apply_basis_left {bas : N → V} {c : N → ℝ} : apply_basis bas c = apply_basis_left c bas := by rfl
+theorem coe_apply_basis_left' {bas : N → V} {c : N → ℝ} : apply_basis' bas c = apply_basis_left c bas := by rfl
+
+
 -- is x a linear combination of bas.
 def hasBasis (bas : N → V) (x : V) := ∃ c : N → ℝ, x = apply_basis bas c
 
@@ -383,6 +427,18 @@ theorem basisContainsItself (bas : N → V) (i : N) : hasBasis bas (bas i) := by
 theorem basisContainsApplications (bas : N → V) (c : N → ℝ) : hasBasis bas (apply_basis bas c) := by
   unfold hasBasis
   tauto
+
+def Irow (i : N) := fun k ↦ if k = i then (1 : ℝ) else 0
+
+theorem basis_Irow (bas : N → V) (i : N) : bas i = apply_basis bas (Irow i) := by
+  unfold Irow apply_basis
+  simp [ite_zero_smul, one_smul, Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+
+theorem Irow_assoc {i : N} {u : N → ℝ} : (fun k : N ↦ if k = i then u k else (0)) = (u i) • (Irow i) := by
+  ext k
+  unfold Irow
+  simp
+  aesop
 
 
 -- (lb1 : linearIndependence bas1) (lb2 : linearIndependence bas2)
@@ -561,6 +617,8 @@ def combinedSpace (A B : V → Prop) (x : V) := ∃a b, A a ∧ B b ∧ x = a + 
 
 -- lemma combinedSpace_cols (a : N → V) (b : N' → V) : (combinedSpace (hasBasis a) (hasBasis b))
 
+theorem ite_distrib {S : Type} [AddCommMonoid S](p)[Decidable p](a b : S) : (if p then a else b) = (if p then a else 0) + (if p then 0 else b) := by
+  aesop
 
 
 lemma hasBasis_ite (p : N → Prop) [DecidablePred p] (a b : N → V) : hasBasis (fun k ↦ if p k then a k else b k)
@@ -619,12 +677,67 @@ lemma BasisShiftFree_same (bas : N → V) (lb : linearIndependence bas) (i : N) 
     {
       rw [h]
       unfold hasBasis
+      -- use ?_
+      rw [apply_basis]
+      simp
+      simp [coe_apply_basis_left']
+      conv in if _ = y then _ else _ =>{
+        rw [ite_distrib]
+      }
+      change ∃ c_1, bas y = (apply_basis_left c_1) ((fun k ↦ (if k = y then ∑ i : N, c i • bas i else 0)) + fun k ↦ if k = y then 0 else bas k)
+      simp only [map_add]
 
-      sorry
+      -- simp_rw [Irow_assoc (u := fun _ ↦ (∑ i : N, c i • bas i))]
+      simp only [←coe_apply_basis_left]
+      unfold apply_basis
+
+      let d := fun k ↦ if k = y then (c y)⁻¹ else - (c y)⁻¹ * c k
+      simp only [smul_ite_zero, Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+      use ?_
+      simp [Finset.smul_sum]
+      simp [←Finset.sum_add_distrib]
+      symm
+
+      have key(x) : (?w y • c x + ?w x * if x = y then 0 else 1) = if x = y then 1 else 0 := ?_
+      calc
+        ∑ x : N, (?w y • c x • bas x + ?w x • if x = y then 0 else bas x) = ∑ x : N, (?w y • c x • bas x + ?w x • if x = y then 0 else bas x) := sorry
+        _ = ∑ x : N, (?w y • c x • bas x + ?w x • if x = y then 0 else bas x) := sorry
+        _ = ∑ x : N, ((?w y • c x • bas x + ?w x • (if x = y then 0 else (1 : ℝ)) • bas x)) := by
+          simp_rw [ite_smul _ _ _]
+          simp
+        _ = ∑ x : N, ((?w y • c x • bas x + (?w x * if x = y then 0 else 1) • bas x)) := by
+          simp_rw [mul_smul]
+        _ = ∑ x : N, ((?w y • c x + ?w x * if x = y then 0 else 1) • bas x) := by
+          simp_rw [add_smul]
+          simp
+          simp_rw [mul_smul]
+        _ = ∑ x : N, (if x = y then 1 else 0) • bas x := by
+          simp_rw [key _]
+          simp
+        _ = bas y := by simp
+
+      rotate_left
+      exact d
+      split
+      {
+        simp
+        rw [(_ : x = y)]
+        rw [h] at hc
+        exact inv_mul_cancel hc
+        assumption
+      }
+      -- - d y * c x = d x
+      simp
+      split
+      tauto
+      simp
     }
+    have : (fun k ↦ if k = i then apply_basis bas c else bas k) y = bas y := by
+      simp
+      tauto
+    rw [←this]
 
-
-    sorry
+    apply basisContainsItself
   }
 
 
@@ -634,8 +747,15 @@ lemma BasisShiftFree_linInd (bas : N → V) (lb : linearIndependence bas) (i : N
 
   sorry
 
-lemma BasisOneOrthogonal (product : InnerProduct V) (bas : N → V) (lb : linearIndependence bas) (i : N) :
-    ∃ obas : N → V, hasBasis obas = hasBasis bas ∧ linearIndependence obas ∧ (∀j ≠ i, obas j = bas j) ∧ (∀j ≠ i, orthogonalPair product bas i j) := by
+lemma BasisOneOrthogonal (product : InnerProduct V) (bas : N → V)
+    (lb : linearIndependence bas) (i : N) :
+    ∃ obas : N → V, hasBasis obas = hasBasis bas
+    ∧ linearIndependence obas ∧ (∀j ≠ i, obas j = bas j)
+    ∧ (∀j ≠ i, orthogonalPair product bas i j) := by
+
+  -- use ?_
+  -- refine ⟨?_,?_,?_,?_⟩
+
 
   sorry
 
