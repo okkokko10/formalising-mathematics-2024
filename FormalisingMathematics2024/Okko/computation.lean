@@ -3,50 +3,8 @@ import Mathlib.tactic
 
 noncomputable section ComputationOkko
 
-variable {state_ alphabet_ : Type}
 
-structure TuringMachine  --[Fintype state_] [Fintype alphabet_]
-  where
-  -- δ : Q → G → Q × G × Bool
-  Q : Finset state_ -- states
-  S : Finset alphabet_ -- input
-  G : Finset alphabet_ -- tape alphabet plus leftChar and rightChar
-  Gz: Zero G
-  leftChar : G
-  rightChar : G
-  δ : Q → G → Q × G × Bool -- transition
-  -- δ : state_ → alphabet_ → state_ × alphabet_ × Bool -- transition
-  q0 : Q -- start state
-  qAcc : Q -- accept state
-  qRej : Q -- reject state
-  acc_neq_rej : qAcc ≠ qRej
-  transition_left {q : Q} : (δ q leftChar).2 = ⟨leftChar,True⟩
-  transition_left_r {q : Q} (a): (δ q a).2.1 = leftChar → a = leftChar
-  transition_right {q : Q} (a): (δ q a).2.1 = rightChar → (a = rightChar ∧ (δ q a).2.2 = False)
-  δ_state (q : Q) (a : G) := (δ q a).1
-  δ_alpha (q : Q) (a : G) := (δ q a).2.1
-  δ_direction (q : Q) (a : G) := (δ q a).2.2
-  rej_loop (a) : δ_state qRej a = qRej
-
--- def TuringMachine.δ_state (M : @TuringMachine state_ alphabet_) (q : M.Q) (a : M.G) := (M.δ q a).1
--- def TuringMachine.δ_alpha (M : @TuringMachine state_ alphabet_) (q : M.Q) (a : M.G) := (M.δ q a).2.1
--- def TuringMachine.δ_direction (M : @TuringMachine state_ alphabet_) (q : M.Q) (a : M.G) := (M.δ q a).2.2
-
-
-structure TuringConfiguration (M : @TuringMachine state_ alphabet_) where
-  q : M.Q
-  tape : ℕ → M.G
-  -- tape : ℕ →₀ M.G
-  index : ℕ
-  -- u : List M.G
-  a : M.G := tape index
-  -- v : List M.G
-
-def TuringConfiguration.yield {M : @TuringMachine state_ alphabet_} (C : TuringConfiguration M) : TuringConfiguration M where
-  q := M.δ_state C.q C.a
-  -- tape := C.tape.set C.index (M.δ_alpha C.q C.a)
-  tape := fun n ↦ if n = C.index then (M.δ_alpha C.q C.a) else C.tape n
-  index := if (M.δ_direction C.q C.a) then C.index + 1 else C.index - 1
+section lead
 
 
 def is_leading {X} (f : X → X) (s : ℕ → X) := (∀i, f (s i) = s (i + 1))
@@ -203,6 +161,57 @@ theorem leads_self {X} (f : X → X) (a: X) : sequence_leads f a a := by
   rfl
 
 
+
+
+
+end lead
+
+
+
+variable {state_ alphabet_ : Type}
+
+structure TuringMachine  --[Fintype state_] [Fintype alphabet_]
+  where
+  -- δ : Q → G → Q × G × Bool
+  Q : Finset state_ -- states
+  S : Finset alphabet_ -- input
+  G : Finset alphabet_ -- tape alphabet plus leftChar and rightChar
+  Gz: Zero G
+  leftChar : G
+  rightChar : G
+  δ : Q → G → Q × G × Bool -- transition
+  -- δ : state_ → alphabet_ → state_ × alphabet_ × Bool -- transition
+  q0 : Q -- start state
+  qAcc : Q -- accept state
+  qRej : Q -- reject state
+  acc_neq_rej : qAcc ≠ qRej
+  transition_left {q : Q} : (δ q leftChar).2 = ⟨leftChar,True⟩
+  transition_left_r {q : Q} (a): (δ q a).2.1 = leftChar → a = leftChar
+  transition_right {q : Q} (a): (δ q a).2.1 = rightChar → (a = rightChar ∧ (δ q a).2.2 = False)
+  δ_state (q : Q) (a : G) := (δ q a).1
+  δ_alpha (q : Q) (a : G) := (δ q a).2.1
+  δ_direction (q : Q) (a : G) := (δ q a).2.2
+  rej_loop (a) : δ_state qRej a = qRej
+
+-- def TuringMachine.δ_state (M : @TuringMachine state_ alphabet_) (q : M.Q) (a : M.G) := (M.δ q a).1
+-- def TuringMachine.δ_alpha (M : @TuringMachine state_ alphabet_) (q : M.Q) (a : M.G) := (M.δ q a).2.1
+-- def TuringMachine.δ_direction (M : @TuringMachine state_ alphabet_) (q : M.Q) (a : M.G) := (M.δ q a).2.2
+
+
+structure TuringConfiguration (M : @TuringMachine state_ alphabet_) where
+  q : M.Q
+  tape : ℕ → M.G
+  -- tape : ℕ →₀ M.G
+  index : ℕ
+  -- u : List M.G
+  a : M.G := tape index
+  -- v : List M.G
+
+def TuringConfiguration.yield {M : @TuringMachine state_ alphabet_} (C : TuringConfiguration M) : TuringConfiguration M where
+  q := M.δ_state C.q C.a
+  -- tape := C.tape.set C.index (M.δ_alpha C.q C.a)
+  tape := fun n ↦ if n = C.index then (M.δ_alpha C.q C.a) else C.tape n
+  index := if (M.δ_direction C.q C.a) then C.index + 1 else C.index - 1
 
 
 
