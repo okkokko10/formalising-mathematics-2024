@@ -8,7 +8,7 @@ section lead
 
 
 def is_leading {X} (f : X → X) (s : ℕ → X) := (∀i, f (s i) = s (i + 1))
-def sequence_leads {X} (f : X → X) (a b: X) : Prop := ∃s : ℕ → X, ∃n, (∀i < n, f (s i) = s (i + 1)) ∧ s 0 = a ∧ s n = b
+def leads {X} (f : X → X) (a b: X) : Prop := ∃s : ℕ → X, ∃n, (∀i < n, f (s i) = s (i + 1)) ∧ s 0 = a ∧ s n = b
 
 
 def sequence_leading {X} (f : X → X) (a: X) : ℕ → X
@@ -44,7 +44,7 @@ theorem sequence_leading' {X} (f : X → X) (a: X) : ∃!s : ℕ → X, (is_lead
     rfl
 
 
-
+section old_sequence_leading_choose
 
 def sequence_leading_choose {X} (f : X → X) (a: X) : ℕ → X := (sequence_leading' f a).choose
 
@@ -81,7 +81,7 @@ theorem sequence_leading_value {X} (f : X → X) (a: X) : (sequence_leading_choo
 
 
 
-theorem sequence_leads_iff {X} (f : X → X) (a b: X) : sequence_leads f a b ↔ ∃n, sequence_leading_choose f a n = b := by
+theorem sequence_leads_iff {X} (f : X → X) (a b: X) : leads f a b ↔ ∃n, sequence_leading_choose f a n = b := by
   constructor
   · intro ⟨ab_s,ab_n,ab_yield,ab_0,ab_1⟩
     use ab_n
@@ -103,9 +103,12 @@ theorem sequence_leads_iff {X} (f : X → X) (a b: X) : sequence_leads f a b ↔
     · exact sequence_leading_spec_B ..
     · exact w
 
+end old_sequence_leading_choose
+
+
 
 @[trans]
-theorem leads_trans {X} (f : X → X) (a b c: X) : sequence_leads f a b → sequence_leads f b c → sequence_leads f a c := by
+theorem leads_trans {X} (f : X → X) (a b c: X) : leads f a b → leads f b c → leads f a c := by
 
   intro ⟨ab_s,ab_n,ab_yield,ab_0,ab_1⟩ ⟨bc_s,bc_n,bc_yield,bc_0,bc_1⟩
   -- use fun i ↦ if i < ab_n then ab_s i else bc_s (i - ab_n)
@@ -153,7 +156,7 @@ theorem leads_trans {X} (f : X → X) (a b c: X) : sequence_leads f a b → sequ
     simp [h]
     exact bc_1
 
-theorem leads_self {X} (f : X → X) (a: X) : sequence_leads f a a := by
+theorem leads_self {X} (f : X → X) (a: X) : leads f a a := by
 
   rw [sequence_leads_iff]
   use 0
@@ -215,8 +218,8 @@ def TuringConfiguration.yield {M : @TuringMachine state_ alphabet_} (C : TuringC
 
 
 
-def TuringConfiguration.leads {M : @TuringMachine state_ alphabet_} (a : TuringConfiguration M) (b : TuringConfiguration M) : Prop :=
-    sequence_leads TuringConfiguration.yield a b
+def TuringConfiguration.leads' {M : @TuringMachine state_ alphabet_} (a : TuringConfiguration M) (b : TuringConfiguration M) : Prop :=
+    leads TuringConfiguration.yield a b
 
 def TuringConfiguration.acceptsImmediate {M : @TuringMachine state_ alphabet_} (a : TuringConfiguration M) : Prop :=
   a.q = M.qAcc
@@ -225,10 +228,10 @@ def TuringConfiguration.rejectsImmediate {M : @TuringMachine state_ alphabet_} (
   a.q = M.qRej
 
 def TuringConfiguration.rejects_leads {M : @TuringMachine state_ alphabet_} (a : TuringConfiguration M) : Prop :=
-  ∃b, b.rejectsImmediate ∧ a.leads b
+  ∃b, b.rejectsImmediate ∧ a.leads' b
 
 def TuringConfiguration.accepts {M : @TuringMachine state_ alphabet_} (a : TuringConfiguration M) : Prop :=
-  ∃b, b.acceptsImmediate ∧ a.leads b
+  ∃b, b.acceptsImmediate ∧ a.leads' b
 
 
 theorem TuringConfiguration.rejects_of_leads_rej {M : @TuringMachine state_ alphabet_} (C : TuringConfiguration M) :
