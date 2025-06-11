@@ -53,12 +53,19 @@ def is_leading {X} (f : X → X) (s : ℕ → X) := (∀i, f (s i) = s (i + 1))
 def sequence_leads {X} (f : X → X) (a b: X) : Prop := ∃s : ℕ → X, ∃n, (∀i < n, f (s i) = s (i + 1)) ∧ s 0 = a ∧ s n = b
 
 
-def sequence_leading_recursive  {X} (f : X → X) (a: X) : ℕ → X
+def sequence_leading {X} (f : X → X) (a: X) : ℕ → X
     | 0 => a
-    | i + 1 => f (sequence_leading_recursive f a i)
+    | i + 1 => f (sequence_leading f a i)
+
+theorem sequence_leading_is_leading {X} {f : X → X} {a: X} : is_leading f (sequence_leading f a) := by
+  unfold is_leading
+  intro i
+  rfl
+
+
 
 theorem sequence_leading' {X} (f : X → X) (a: X) : ∃!s : ℕ → X, (is_leading f s) ∧ s 0 = a := by
-  use sequence_leading_recursive f a
+  use sequence_leading f a
   refine ⟨⟨?_,?_⟩,?_⟩
   · unfold is_leading
     intro i
@@ -81,16 +88,16 @@ theorem sequence_leading' {X} (f : X → X) (a: X) : ∃!s : ℕ → X, (is_lead
 
 
 
-def sequence_leading {X} (f : X → X) (a: X) : ℕ → X := (sequence_leading' f a).choose
+def sequence_leading_choose {X} (f : X → X) (a: X) : ℕ → X := (sequence_leading' f a).choose
 
-theorem sequence_leading_spec_A {X} (f : X → X) (a: X) : is_leading f (sequence_leading f a) := (sequence_leading' f a).choose_spec.left.left
+theorem sequence_leading_spec_A {X} (f : X → X) (a: X) : is_leading f (sequence_leading_choose f a) := (sequence_leading' f a).choose_spec.left.left
 
-theorem sequence_leading_spec_B {X} (f : X → X) (a: X) : (sequence_leading f a) 0 = a := (sequence_leading' f a).choose_spec.left.right
+theorem sequence_leading_spec_B {X} (f : X → X) (a: X) : (sequence_leading_choose f a) 0 = a := (sequence_leading' f a).choose_spec.left.right
 
 
-theorem sequence_leading_value {X} (f : X → X) (a: X) : (sequence_leading f a) = sequence_leading_recursive f a := by
+theorem sequence_leading_value {X} (f : X → X) (a: X) : (sequence_leading_choose f a) = sequence_leading f a := by
   -- have t0:= (sequence_leading' f a).choose_spec
-  have seqq: ∀ (y : ℕ → X), (fun s ↦ is_leading f s ∧ s 0 = a) y → y = sequence_leading_recursive f a := by
+  have seqq: ∀ (y : ℕ → X), (fun s ↦ is_leading f s ∧ s 0 = a) y → y = sequence_leading f a := by
     -- copied from above
     intro s
     simp only [and_imp]
@@ -101,7 +108,7 @@ theorem sequence_leading_value {X} (f : X → X) (a: X) : (sequence_leading f a)
     | succ i' ih =>
       rw [←l i',ih]
       rfl
-  have := seqq (sequence_leading f a)
+  have := seqq (sequence_leading_choose f a)
   simp only [and_imp] at this
   apply this
   · unfold is_leading
@@ -116,12 +123,12 @@ theorem sequence_leading_value {X} (f : X → X) (a: X) : (sequence_leading f a)
 
 
 
-theorem sequence_leads_iff {X} (f : X → X) (a b: X) : sequence_leads f a b ↔ ∃n, sequence_leading f a n = b := by
+theorem sequence_leads_iff {X} (f : X → X) (a b: X) : sequence_leads f a b ↔ ∃n, sequence_leading_choose f a n = b := by
   constructor
   · intro ⟨ab_s,ab_n,ab_yield,ab_0,ab_1⟩
     use ab_n
     rw [←ab_1]
-    have : ∀ i ≤ ab_n, sequence_leading f a i = ab_s i := by
+    have : ∀ i ≤ ab_n, sequence_leading_choose f a i = ab_s i := by
       intro i i_le
       induction i with
       | zero => rw [sequence_leading_spec_B,ab_0]
@@ -132,7 +139,7 @@ theorem sequence_leads_iff {X} (f : X → X) (a b: X) : sequence_leads f a b ↔
         exact (prev ▸ t1) ▸ t2
     exact this ab_n (by linarith only)
   · intro ⟨n,w⟩
-    refine ⟨(sequence_leading f a), n, ?_,?_,?_⟩
+    refine ⟨(sequence_leading_choose f a), n, ?_,?_,?_⟩
     · intro i _
       exact sequence_leading_spec_A ..
     · exact sequence_leading_spec_B ..
