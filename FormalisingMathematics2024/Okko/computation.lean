@@ -299,6 +299,7 @@ structure TuringMachine2
   -- δ : state_ → alphabet_ → state_ × alphabet_ × Bool -- transition
   qAcc : Q -- accept state
   qRej : Q -- reject state
+  q0 : Q -- start state
   acc_neq_rej : qAcc ≠ qRej
   δ_state (q : Q) (a : G) := (δ q a).1
   δ_alpha (q : Q) (a : G) := (δ q a).2.1
@@ -311,7 +312,6 @@ structure TuringMachine extends (@TuringMachine2 state_ alphabet_)  --[Fintype s
   where
   leftChar : G
   rightChar : G
-  q0 : Q -- start state
   transition_left {q : Q} : (δ q leftChar).2 = ⟨leftChar,True⟩
   transition_left_r {q : Q} (a): (δ q a).2.1 = leftChar → a = leftChar
   transition_right {q : Q} (a): (δ q a).2.1 = rightChar → (a = rightChar ∧ (δ q a).2.2 = False)
@@ -334,8 +334,6 @@ structure TuringConfiguration (M : @TuringMachine2 state_ alphabet_) where
   -- v : List M.G
 
 variable {M : @TuringMachine2 state_ alphabet_}
-
--- def TuringMachine2.same (A B : @TuringMachine2 state_ alphabet_) := ∀ tape : ℤ →₀ M.G
 
 
 def TuringConfiguration.yield (C : TuringConfiguration M) : TuringConfiguration M where
@@ -363,11 +361,33 @@ theorem TuringConfiguration.exclusive_rejects_accepts_immediate {a : TuringConfi
   -- unfold acceptsImmediate at aa
   exact M.acc_neq_rej (aa ▸ ar)
 
-def TuringConfiguration.rejects_leads (a : TuringConfiguration M) : Prop :=
+def TuringConfiguration.halt_rejects (a : TuringConfiguration M) : Prop :=
   ∃b, b.rejectsImmediate ∧ a.leads' b
 
 def TuringConfiguration.accepts (a : TuringConfiguration M) : Prop :=
   ∃b, b.acceptsImmediate ∧ a.leads' b
+
+def TuringConfiguration.halts (a : TuringConfiguration M) : Prop :=
+  a.accepts ∨ a.halt_rejects
+
+theorem TuringConfiguration.halts_def (a : TuringConfiguration M) : a.halts ↔ ∃b, (b.rejectsImmediate ∨ b.acceptsImmediate) ∧ a.leads' b := by
+  unfold halts accepts halt_rejects
+  -- constructor
+  -- · intro l
+  --   cases' l with l l
+  --   obtain ⟨b,w,lea⟩ := l
+  --   use b
+  --   tauto
+  --   obtain ⟨b,w,lea⟩ := l
+  --   use b
+  --   tauto
+  -- · intro ⟨b,imm,lea⟩
+  --   cases' imm with _ _
+  --   right
+  --   use b
+  --   left
+  --   use b
+  aesop
 
 theorem TuringConfiguration.rejectsImmediate_yield_rejectsImmediate (a : TuringConfiguration M)
     (h : a.rejectsImmediate) : a.yield.rejectsImmediate := by
@@ -391,10 +411,10 @@ theorem TuringConfiguration.acceptsImmediate_leads_acceptsImmediate {a b : Turin
 
 
 -- if C rejects, so does its predecessor and successor
-theorem TuringConfiguration.rejects_stable (C : TuringConfiguration M): TuringConfiguration.rejects_leads C ↔ TuringConfiguration.rejects_leads C.yield := by
+theorem TuringConfiguration.rejects_stable (C : TuringConfiguration M): halt_rejects C ↔ halt_rejects C.yield := by
 
 
-  unfold rejects_leads leads'
+  unfold halt_rejects leads'
   by_cases h : C.rejectsImmediate
   constructor
   intro _
@@ -415,8 +435,8 @@ theorem TuringConfiguration.rejects_stable (C : TuringConfiguration M): TuringCo
 
 
 theorem TuringConfiguration.exclusive_rejects_accepts (C : TuringConfiguration M) :
-    C.rejects_leads → C.accepts → False := by
-  unfold rejects_leads accepts leads'
+    C.halt_rejects → C.accepts → False := by
+  unfold halt_rejects accepts leads'
   intro ⟨rej,r_q,leads_r⟩
   intro ⟨acc,a_q,leads_a⟩
   have t0 := leads_connected leads_a leads_r
@@ -425,6 +445,22 @@ theorem TuringConfiguration.exclusive_rejects_accepts (C : TuringConfiguration M
   exact rej.exclusive_rejects_accepts_immediate this r_q
   have := rejectsImmediate_leads_rejectsImmediate t2 r_q
   exact acc.exclusive_rejects_accepts_immediate a_q this
+
+
+
+
+def TuringMachine2.use (tape : ℤ →₀ M.G) : TuringConfiguration M where
+  q := M.q0
+  tape := tape
+  index := 0
+def TuringMachine2.accepts (tape : ℤ →₀ M.G) : Prop := (M.use tape).accepts
+def TuringMachine2.halt_rejects (tape : ℤ →₀ M.G) : Prop := (M.use tape).halt_rejects
+
+def TuringMachine2.total : Prop := ∀ tape : ℤ →₀ M.G, (M.use tape).halts
+
+
+-- def TuringMachine2.same {G : Finset alphabet_} (A B : @TuringMachine2 state_ alphabet_ ) := ∀ tape : ℤ →₀ A.G, (A.use tape).accepts ↔ (B.use tape).accepts
+
 
 
 
