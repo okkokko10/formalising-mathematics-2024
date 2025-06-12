@@ -282,19 +282,26 @@ theorem leads_connected  {f : X → X} {a b c : X} (lb : leads f a b) (lc : lead
 -- untrue:
 -- def leads_connected'  {f : X → X} {a b c : X} (lb : leads f b a) (lc : leads f c a) : leads f b c ∨ leads f c b := by sorry
 
+#check Nat.find
+def leads_first {f : X → X} {a b : X} {p : X → Prop} [DecidablePred p] {nb : ℕ} (wb : sequence_leading f a nb = b) (pb : p b) :=
+    Nat.find (p := fun w ↦ p (sequence_leading f a w)) ⟨nb,by simp only [wb,pb]⟩
+
+
+
+
 end lead
 
 
 
-variable {state_ alphabet_ : Type}
+variable {Q G : Type} [Zero G]
 
 -- a looser ruleset
-structure TuringMachine2
+structure TuringMachine2 (Q : Type) (G : Type) [Zero G]
   where
   -- δ : Q → G → Q × G × Bool
-  Q : Finset state_ -- states
-  G : Finset alphabet_ -- tape alphabet plus leftChar and rightChar
-  Gz: Zero G
+  -- Q := state_ -- states
+  -- G := alphabet_ -- tape alphabet plus leftChar and rightChar
+  -- Gz: Zero G := by infer_instance
   δ : Q → G → Q × G × Bool -- transition
   -- δ : state_ → alphabet_ → state_ × alphabet_ × Bool -- transition
   qAcc : Q -- accept state
@@ -308,7 +315,7 @@ structure TuringMachine2
   acc_loop (a) : δ_state qAcc a = qAcc
 
 
-structure TuringMachine extends (@TuringMachine2 state_ alphabet_)  --[Fintype state_] [Fintype alphabet_]
+structure TuringMachine extends (@TuringMachine2 Q G _)  --[Fintype state_] [Fintype alphabet_]
   where
   leftChar : G
   rightChar : G
@@ -320,20 +327,25 @@ structure TuringMachine extends (@TuringMachine2 state_ alphabet_)  --[Fintype s
 -- def TuringMachine.δ_alpha (M : @TuringMachine state_ alphabet_) (q : M.Q) (a : M.G) := (M.δ q a).2.1
 -- def TuringMachine.δ_direction (M : @TuringMachine state_ alphabet_) (q : M.Q) (a : M.G) := (M.δ q a).2.2
 
-instance (M : @TuringMachine2 state_ alphabet_) : Zero M.G := M.Gz
+-- instance (M : @TuringMachine2 Q G _) : Zero M.G := M.Gz
 
 
-structure TuringConfiguration (M : @TuringMachine2 state_ alphabet_) where
-  q : M.Q
+-- TODO: replace ℤ in tape with an arbitrary type. this way it can be generalized to n-tape automata.
+
+-- TODO: Actually the tape rightChar has a purpose in telling the automaton that the finite input has ended.
+
+
+structure TuringConfiguration (M : @TuringMachine2 Q G _) where
+  q : Q
   -- tape : ℕ → M.G
   -- tape : Finsupp ℕ M.G M.Gz
-  tape : ℤ →₀ M.G
+  tape : ℤ →₀ G
   index : ℤ
   -- u : List M.G
-  a : M.G := tape index
+  a : G := tape index
   -- v : List M.G
 
-variable {M : @TuringMachine2 state_ alphabet_}
+variable {M : @TuringMachine2 Q G _}
 
 
 def TuringConfiguration.yield (C : TuringConfiguration M) : TuringConfiguration M where
@@ -353,6 +365,8 @@ def TuringConfiguration.acceptsImmediate (a : TuringConfiguration M) : Prop :=
 def TuringConfiguration.rejectsImmediate (a : TuringConfiguration M) : Prop :=
   a.q = M.qRej
 
+def TuringConfiguration.haltsImmediate (a : TuringConfiguration M) : Prop :=
+  a.rejectsImmediate ∨ a.acceptsImmediate
 
 theorem TuringConfiguration.exclusive_rejects_accepts_immediate {a : TuringConfiguration M} :
     a.acceptsImmediate → a.rejectsImmediate → False := by
@@ -370,8 +384,8 @@ def TuringConfiguration.accepts (a : TuringConfiguration M) : Prop :=
 def TuringConfiguration.halts (a : TuringConfiguration M) : Prop :=
   a.accepts ∨ a.halt_rejects
 
-theorem TuringConfiguration.halts_def (a : TuringConfiguration M) : a.halts ↔ ∃b, (b.rejectsImmediate ∨ b.acceptsImmediate) ∧ a.leads' b := by
-  unfold halts accepts halt_rejects
+theorem TuringConfiguration.halts_def (a : TuringConfiguration M) : a.halts ↔ ∃b, (b.haltsImmediate) ∧ a.leads' b := by
+  unfold haltsImmediate halts accepts halt_rejects
   -- constructor
   -- · intro l
   --   cases' l with l l
@@ -449,17 +463,57 @@ theorem TuringConfiguration.exclusive_rejects_accepts (C : TuringConfiguration M
 
 
 
-def TuringMachine2.use (tape : ℤ →₀ M.G) : TuringConfiguration M where
+def TuringMachine2.use (tape : ℤ →₀ G) : TuringConfiguration M where
   q := M.q0
   tape := tape
   index := 0
-def TuringMachine2.accepts (tape : ℤ →₀ M.G) : Prop := (M.use tape).accepts
-def TuringMachine2.halt_rejects (tape : ℤ →₀ M.G) : Prop := (M.use tape).halt_rejects
+def TuringMachine2.accepts (tape : ℤ →₀ G) : Prop := (M.use tape).accepts
+def TuringMachine2.halt_rejects (tape : ℤ →₀ G) : Prop := (M.use tape).halt_rejects
 
-def TuringMachine2.total : Prop := ∀ tape : ℤ →₀ M.G, (M.use tape).halts
+def TuringMachine2.total : Prop := ∀ tape : ℤ →₀ G, (M.use tape).halts
 
 
--- def TuringMachine2.same {G : Finset alphabet_} (A B : @TuringMachine2 state_ alphabet_ ) := ∀ tape : ℤ →₀ A.G, (A.use tape).accepts ↔ (B.use tape).accepts
+-- on all inputs, both turing machines have the same output.
+def TuringMachine2.same {Q1 Q2 : Type} {G : Type} [Zero G] (A : @TuringMachine2 Q1 G _) (B : @TuringMachine2 Q2 G _) := ∀ tape : ℤ →₀ G, (A.use tape).accepts ↔ (B.use tape).accepts
+
+
+theorem TuringConfiguration.output_theorem (C : TuringConfiguration M) (h : C.halts) : ∃ b, (rejectsImmediate b ∨ acceptsImmediate b) ∧ leads' C b := (C.halts_def.mp h)
+
+def TuringConfiguration.output (C : TuringConfiguration M) (h : C.halts) := (C.output_theorem h).choose
+theorem TuringConfiguration.output_halts (C : TuringConfiguration M) (h : C.halts) : (C.output h).haltsImmediate := (C.output_theorem h).choose_spec.left
+theorem TuringConfiguration.output_leads (C : TuringConfiguration M) (h : C.halts) : C.leads' (C.output h) := (C.output_theorem h).choose_spec.right
+
+def TuringMachine2.output (tape : ℤ →₀ G) := (M.use tape).output
+-- #check Option
+def TuringMachine2.total_output (h_total : M.total) (tape : ℤ →₀ G) := (M.use tape).output (h_total tape)
+
+
+def Comp (Q1 Q2 : Type) : Type := Sum Q1 Q2
+
+def TuringMachine2.comp {Q1 Q2 : Type} {G : Type} [Zero G]
+    (A : @TuringMachine2 Q1 G _) (B : @TuringMachine2 Q2 G _) : TuringMachine2 (Comp Q1 Q2) G where
+
+  δ := by
+    intro q a
+    cases' q with l r
+    · have x := (A.δ l a)
+      exact ⟨Sum.inl x.1,x.2⟩
+    · have x := (B.δ r a)
+      exact ⟨Sum.inr x.1,x.2⟩
+  qAcc := sorry
+  qRej := sorry
+  q0 := sorry
+  acc_neq_rej := sorry
+  rej_loop (a) := sorry
+  acc_loop (a) := sorry
+
+
+
+-- def TuringMachine2.binary {n : ℕ} (repr : G → Fin n) (h: Function.Bijective repr) :=
+
+
+
+-- def UniversalTuringMachine : TuringMachine2 Q G where
 
 
 
