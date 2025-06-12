@@ -288,50 +288,60 @@ end lead
 
 variable {state_ alphabet_ : Type}
 
-structure TuringMachine  --[Fintype state_] [Fintype alphabet_]
+-- a looser ruleset
+structure TuringMachine2
   where
   -- δ : Q → G → Q × G × Bool
   Q : Finset state_ -- states
-  S : Finset alphabet_ -- input
   G : Finset alphabet_ -- tape alphabet plus leftChar and rightChar
   Gz: Zero G
-  leftChar : G
-  rightChar : G
   δ : Q → G → Q × G × Bool -- transition
   -- δ : state_ → alphabet_ → state_ × alphabet_ × Bool -- transition
-  q0 : Q -- start state
   qAcc : Q -- accept state
   qRej : Q -- reject state
   acc_neq_rej : qAcc ≠ qRej
-  transition_left {q : Q} : (δ q leftChar).2 = ⟨leftChar,True⟩
-  transition_left_r {q : Q} (a): (δ q a).2.1 = leftChar → a = leftChar
-  transition_right {q : Q} (a): (δ q a).2.1 = rightChar → (a = rightChar ∧ (δ q a).2.2 = False)
   δ_state (q : Q) (a : G) := (δ q a).1
   δ_alpha (q : Q) (a : G) := (δ q a).2.1
   δ_direction (q : Q) (a : G) := (δ q a).2.2
   rej_loop (a) : δ_state qRej a = qRej
   acc_loop (a) : δ_state qAcc a = qAcc
 
+
+structure TuringMachine extends (@TuringMachine2 state_ alphabet_)  --[Fintype state_] [Fintype alphabet_]
+  where
+  leftChar : G
+  rightChar : G
+  q0 : Q -- start state
+  transition_left {q : Q} : (δ q leftChar).2 = ⟨leftChar,True⟩
+  transition_left_r {q : Q} (a): (δ q a).2.1 = leftChar → a = leftChar
+  transition_right {q : Q} (a): (δ q a).2.1 = rightChar → (a = rightChar ∧ (δ q a).2.2 = False)
+
 -- def TuringMachine.δ_state (M : @TuringMachine state_ alphabet_) (q : M.Q) (a : M.G) := (M.δ q a).1
 -- def TuringMachine.δ_alpha (M : @TuringMachine state_ alphabet_) (q : M.Q) (a : M.G) := (M.δ q a).2.1
 -- def TuringMachine.δ_direction (M : @TuringMachine state_ alphabet_) (q : M.Q) (a : M.G) := (M.δ q a).2.2
 
+instance (M : @TuringMachine2 state_ alphabet_) : Zero M.G := M.Gz
 
-structure TuringConfiguration (M : @TuringMachine state_ alphabet_) where
+
+structure TuringConfiguration (M : @TuringMachine2 state_ alphabet_) where
   q : M.Q
-  tape : ℕ → M.G
-  -- tape : ℕ →₀ M.G
-  index : ℕ
+  -- tape : ℕ → M.G
+  -- tape : Finsupp ℕ M.G M.Gz
+  tape : ℤ →₀ M.G
+  index : ℤ
   -- u : List M.G
   a : M.G := tape index
   -- v : List M.G
 
-variable {M : @TuringMachine state_ alphabet_}
+variable {M : @TuringMachine2 state_ alphabet_}
+
+-- def TuringMachine2.same (A B : @TuringMachine2 state_ alphabet_) := ∀ tape : ℤ →₀ M.G
+
 
 def TuringConfiguration.yield (C : TuringConfiguration M) : TuringConfiguration M where
   q := M.δ_state C.q C.a
-  -- tape := C.tape.set C.index (M.δ_alpha C.q C.a)
-  tape := fun n ↦ if n = C.index then (M.δ_alpha C.q C.a) else C.tape n
+  -- tape := fun n ↦ if n = C.index then (M.δ_alpha C.q C.a) else C.tape n
+  tape := C.tape.update C.index (M.δ_alpha C.q C.a)
   index := if (M.δ_direction C.q C.a) then C.index + 1 else C.index - 1
 
 
