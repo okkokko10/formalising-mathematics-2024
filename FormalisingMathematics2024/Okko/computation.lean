@@ -43,6 +43,13 @@ theorem sequence_leading_def' (f : X → X) (a: X) : sequence_leading f a = fun 
 
 theorem sequence_leading_apply (f : X → X) (a: X) {i : ℕ} : sequence_leading f a i = f ^[i] a := by rw [sequence_leading_def']
 
+
+-- @[simp]
+theorem sequence_leading_succ' {f : X → X} {a: X} {i : ℕ} : sequence_leading f a (i + 1) = (sequence_leading f (f a) i) := by
+  simp_rw [sequence_leading_def']
+  rw [Function.iterate_succ, Function.comp_apply]
+
+
 theorem sequence_leading_tail {f : X → X} {a: X} (n : ℕ) {i : ℕ} :
     (sequence_leading f a) (n + i) = sequence_leading f (sequence_leading f a n) i := by
   simp_rw [sequence_leading_def']
@@ -226,7 +233,7 @@ def leadsPreorder (f : X → X) : Preorder X where
 
 
 
-def leads_preserves  {f : X → X} {a b : X} {p : X → Prop} (hp : ∀x, p x → p (f x)) (l : leads f a b) : p a → p b := by
+theorem leads_preserves  {f : X → X} {a b : X} {p : X → Prop} (hp : ∀x, p x → p (f x)) (l : leads f a b) : p a → p b := by
   intro pa
   simp_rw [leads_def,sequence_leading_apply f a] at l
   obtain ⟨n, w⟩ := l
@@ -235,8 +242,14 @@ def leads_preserves  {f : X → X} {a b : X} {p : X → Prop} (hp : ∀x, p x �
   exact this
 
 
-def leads_preserves'  {f : X → X} {a b : X} {p : X → Prop} (hp : ∀x, p (f x) → p x) (l : leads f a b) : p b → p a := by
-  sorry
+theorem leads_preserves_antitone  {f : X → X} {a b : X} {p : X → Prop} (hp : ∀x, p (f x) → p x) (l : leads f a b) : p b → p a := by
+  rw [← not_imp_not]
+  simp_rw [←@not_imp_not (p _) (p _)] at hp
+  exact leads_preserves (p := (¬ p ·)) hp l
+
+theorem leads_preserves_iff  {f : X → X} {a b : X} {p : X → Prop} (hp : ∀x, p x ↔ p (f x)) (l : leads f a b) : p a ↔ p b :=
+  ⟨leads_preserves (hp · |>.mp) l, leads_preserves_antitone (hp · |>.mpr) l⟩
+
 
 
 lemma leads_connected1  {f : X → X} {a b c : X}
@@ -313,7 +326,9 @@ structure TuringConfiguration (M : @TuringMachine state_ alphabet_) where
   a : M.G := tape index
   -- v : List M.G
 
-def TuringConfiguration.yield {M : @TuringMachine state_ alphabet_} (C : TuringConfiguration M) : TuringConfiguration M where
+variable {M : @TuringMachine state_ alphabet_}
+
+def TuringConfiguration.yield (C : TuringConfiguration M) : TuringConfiguration M where
   q := M.δ_state C.q C.a
   -- tape := C.tape.set C.index (M.δ_alpha C.q C.a)
   tape := fun n ↦ if n = C.index then (M.δ_alpha C.q C.a) else C.tape n
@@ -321,45 +336,43 @@ def TuringConfiguration.yield {M : @TuringMachine state_ alphabet_} (C : TuringC
 
 
 
-def TuringConfiguration.leads' {M : @TuringMachine state_ alphabet_} (a : TuringConfiguration M) (b : TuringConfiguration M) : Prop :=
+def TuringConfiguration.leads' (a : TuringConfiguration M) (b : TuringConfiguration M) : Prop :=
     _root_.leads TuringConfiguration.yield a b
 
-def TuringConfiguration.acceptsImmediate {M : @TuringMachine state_ alphabet_} (a : TuringConfiguration M) : Prop :=
+def TuringConfiguration.acceptsImmediate (a : TuringConfiguration M) : Prop :=
   a.q = M.qAcc
 
-def TuringConfiguration.rejectsImmediate {M : @TuringMachine state_ alphabet_} (a : TuringConfiguration M) : Prop :=
+def TuringConfiguration.rejectsImmediate (a : TuringConfiguration M) : Prop :=
   a.q = M.qRej
 
 
-theorem TuringConfiguration.exclusive_rejects_accepts {M : @TuringMachine state_ alphabet_} {a : TuringConfiguration M} :
+theorem TuringConfiguration.exclusive_rejects_accepts_immediate {a : TuringConfiguration M} :
     a.acceptsImmediate → a.rejectsImmediate → False := by
   intro aa ar
   -- unfold rejectsImmediate at ar
   -- unfold acceptsImmediate at aa
   exact M.acc_neq_rej (aa ▸ ar)
 
-
-
-
-def TuringConfiguration.rejects_leads {M : @TuringMachine state_ alphabet_} (a : TuringConfiguration M) : Prop :=
+def TuringConfiguration.rejects_leads (a : TuringConfiguration M) : Prop :=
   ∃b, b.rejectsImmediate ∧ a.leads' b
 
-def TuringConfiguration.accepts {M : @TuringMachine state_ alphabet_} (a : TuringConfiguration M) : Prop :=
+def TuringConfiguration.accepts (a : TuringConfiguration M) : Prop :=
   ∃b, b.acceptsImmediate ∧ a.leads' b
 
-theorem TuringConfiguration.rejectsImmediate_yield_rejectsImmediate {M : @TuringMachine state_ alphabet_} (a : TuringConfiguration M)
+theorem TuringConfiguration.rejectsImmediate_yield_rejectsImmediate (a : TuringConfiguration M)
     (h : a.rejectsImmediate) : a.yield.rejectsImmediate := by
   unfold rejectsImmediate yield
   simp only
   rw [h,M.rej_loop]
 
-theorem TuringConfiguration.rejectsImmediate_leads_rejectsImmediate {M : @TuringMachine state_ alphabet_} (a b : TuringConfiguration M)
-    (h : a.rejectsImmediate) (hl : a.leads' b) : b.rejectsImmediate := by
+
+theorem TuringConfiguration.rejectsImmediate_leads_rejectsImmediate {a b : TuringConfiguration M}
+    (hl : a.leads' b) (h : a.rejectsImmediate) : b.rejectsImmediate := by
   exact leads_preserves TuringConfiguration.rejectsImmediate_yield_rejectsImmediate hl h
 
 
-theorem TuringConfiguration.acceptsImmediate_leads_acceptsImmediate {M : @TuringMachine state_ alphabet_} (a b : TuringConfiguration M)
-    (h : a.acceptsImmediate) (hl : a.leads' b) : b.acceptsImmediate := by
+theorem TuringConfiguration.acceptsImmediate_leads_acceptsImmediate {a b : TuringConfiguration M}
+    (hl : a.leads' b) (h : a.acceptsImmediate) : b.acceptsImmediate := by
   refine leads_preserves ?_ hl h
   intro x hx
   unfold acceptsImmediate yield
@@ -367,17 +380,41 @@ theorem TuringConfiguration.acceptsImmediate_leads_acceptsImmediate {M : @Turing
   rw [hx,M.acc_loop]
 
 
-theorem TuringConfiguration.rejects_of_leads_rej {M : @TuringMachine state_ alphabet_} (C : TuringConfiguration M) :
-    C.rejects_leads → ¬ C.accepts := by
+-- if C rejects, so does its predecessor and successor
+theorem TuringConfiguration.rejects_stable (C : TuringConfiguration M): TuringConfiguration.rejects_leads C ↔ TuringConfiguration.rejects_leads C.yield := by
+
+
+  unfold rejects_leads leads'
+  by_cases h : C.rejectsImmediate
+  constructor
+  intro _
+  use (C.yield)
+  constructor
+  exact rejectsImmediate_yield_rejectsImmediate C h
+  exact leads_self yield (yield C)
+  sorry
+  unfold leads
+  simp_rw [←sequence_leading_succ']
+  -- simp only [sequence_leading_succ]
+  refine ⟨fun ⟨b,r_b,n,se⟩ ↦ ⟨b,r_b,n - 1,?_⟩,fun rig ↦ ?_⟩
+
+
+
+  sorry
+  sorry
+
+
+theorem TuringConfiguration.exclusive_rejects_accepts (C : TuringConfiguration M) :
+    C.rejects_leads → C.accepts → False := by
   unfold rejects_leads accepts leads'
   intro ⟨rej,r_q,leads_r⟩
   intro ⟨acc,a_q,leads_a⟩
-  have t0:= leads_connected leads_a leads_r
+  have t0 := leads_connected leads_a leads_r
   cases' t0 with t1 t2
-  have := acceptsImmediate_leads_acceptsImmediate _ rej a_q t1
-  exact rej.exclusive_rejects_accepts this r_q
-  have := rejectsImmediate_leads_rejectsImmediate _ acc r_q t2
-  exact acc.exclusive_rejects_accepts a_q this
+  have := acceptsImmediate_leads_acceptsImmediate t1 a_q
+  exact rej.exclusive_rejects_accepts_immediate this r_q
+  have := rejectsImmediate_leads_rejectsImmediate t2 r_q
+  exact acc.exclusive_rejects_accepts_immediate a_q this
 
 
 
