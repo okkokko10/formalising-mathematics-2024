@@ -6,53 +6,58 @@ noncomputable section ComputationOkko
 
 section lead
 
+variable {X : Type}
 
-def sequence_leading {X} (f : X → X) (a: X) : ℕ → X
+def sequence_leading  (f : X → X) (a: X) : ℕ → X
     | 0 => a
     | i + 1 => f (sequence_leading f a i)
 
-def is_leading {X} (f : X → X) (s : ℕ → X) := (∀i, f (s i) = s (i + 1))
-theorem is_leading_def {X} {f : X → X} {s : ℕ → X} : is_leading f s ↔ (∀i, f (s i) = s (i + 1)) := by rfl
-def is_leading_limited {X} (f : X → X) (n : ℕ) (s : ℕ → X) := (∀i < n, f (s i) = s (i + 1))
-theorem is_leading_limited_def {X} {f : X → X} {n : ℕ} {s : ℕ → X} : is_leading_limited f n s ↔ (∀i < n, f (s i) = s (i + 1)) := by rfl
 
-theorem is_leading_then_limited {X} {f : X → X} {s : ℕ → X} (h : is_leading f s) (n : ℕ) : is_leading_limited f n s := by
+def is_leading (f : X → X) (s : ℕ → X) := (∀i, f (s i) = s (i + 1))
+theorem is_leading_def {f : X → X} {s : ℕ → X} : is_leading f s ↔ (∀i, f (s i) = s (i + 1)) := by rfl
+def is_leading_limited (f : X → X) (n : ℕ) (s : ℕ → X) := (∀i < n, f (s i) = s (i + 1))
+theorem is_leading_limited_def {f : X → X} {n : ℕ} {s : ℕ → X} : is_leading_limited f n s ↔ (∀i < n, f (s i) = s (i + 1)) := by rfl
+
+theorem is_leading_then_limited {f : X → X} {s : ℕ → X} (h : is_leading f s) (n : ℕ) : is_leading_limited f n s := by
   refine is_leading_limited_def.mpr ?_
   intro i _
   exact h i
 
 
-def leads {X} (f : X → X) (a b: X) : Prop := ∃n, sequence_leading f a n = b
-theorem leads_def {X} {f : X → X} {a b: X} : leads f a b ↔ ∃n, sequence_leading f a n = b := by rfl
+def leads (f : X → X) (a b: X) : Prop := ∃n, sequence_leading f a n = b
+theorem leads_def {f : X → X} {a b: X} : leads f a b ↔ ∃n, sequence_leading f a n = b := by rfl
 
 @[simp]
-theorem sequence_leading_succ {X} {f : X → X} {a: X} {i : ℕ} : sequence_leading f a (i + 1) = f (sequence_leading f a i) := by rfl
+theorem sequence_leading_succ {f : X → X} {a: X} {i : ℕ} : sequence_leading f a (i + 1) = f (sequence_leading f a i) := by rfl
 @[simp]
-theorem sequence_leading_zero {X} {f : X → X} {a: X} : sequence_leading f a 0 = a := by rfl
+theorem sequence_leading_zero {f : X → X} {a: X} : sequence_leading f a 0 = a := by rfl
 
 
-theorem sequence_leading_tail {X} {f : X → X} {a: X} (n : ℕ) {i : ℕ} :
-    (sequence_leading f a) (n + i) = sequence_leading f (sequence_leading f a n) i := by
+theorem sequence_leading_def' (f : X → X) (a: X) : sequence_leading f a = fun i ↦ f ^[i] a := by
+  ext i
   induction i with
   | zero =>
-    dsimp only [Nat.zero_eq, Nat.add_zero]
-    simp only [sequence_leading_zero]
+    simp only [Nat.zero_eq, sequence_leading_zero, Function.iterate_zero, id_eq]
   | succ i' hi =>
-    simp only [sequence_leading_succ]
-    rw [← hi]
-    simp only [←sequence_leading_succ]
-    apply congrArg
-    rfl
+    simp only [sequence_leading_succ, Function.iterate_succ', hi, Function.comp_apply]
+
+theorem sequence_leading_apply (f : X → X) (a: X) {i : ℕ} : sequence_leading f a i = f ^[i] a := by rw [sequence_leading_def']
+
+theorem sequence_leading_tail {f : X → X} {a: X} (n : ℕ) {i : ℕ} :
+    (sequence_leading f a) (n + i) = sequence_leading f (sequence_leading f a n) i := by
+  simp_rw [sequence_leading_def']
+  rw [add_comm]
+  rw [Function.iterate_add_apply]
 
 
 
-theorem sequence_leading_is_leading {X} {f : X → X} {a: X} : is_leading f (sequence_leading f a) := by
+theorem sequence_leading_is_leading {f : X → X} {a: X} : is_leading f (sequence_leading f a) := by
   rw [is_leading_def]
   intro i
-  rfl
+  simp only [sequence_leading_succ]
 
 
-theorem is_leading_eq_sequence_leading {X} {f : X → X} {s : ℕ → X} (h : is_leading f s) : s = sequence_leading f (s 0) := by
+theorem is_leading_eq_sequence_leading {f : X → X} {s : ℕ → X} (h : is_leading f s) : s = sequence_leading f (s 0) := by
   rw [is_leading_def] at h
   ext i
   induction i with
@@ -64,7 +69,7 @@ theorem is_leading_eq_sequence_leading {X} {f : X → X} {s : ℕ → X} (h : is
     exact sequence_leading_succ
 
 
-theorem is_leading_limited_eq_sequence_leading {X} {f : X → X} {n : ℕ} {s : ℕ → X} (h : is_leading_limited f n s) : ∀i ≤ n, s i = sequence_leading f (s 0) i := by
+theorem is_leading_limited_eq_sequence_leading {f : X → X} {n : ℕ} {s : ℕ → X} (h : is_leading_limited f n s) : ∀i ≤ n, s i = sequence_leading f (s 0) i := by
   intro i i_n
   rw [is_leading_limited_def] at h
   induction i with
@@ -79,7 +84,7 @@ theorem is_leading_limited_eq_sequence_leading {X} {f : X → X} {n : ℕ} {s : 
     rw [←h]
 
 
-theorem leads_alt_def {X} {f : X → X} {a b : X} : leads f a b ↔ (∃s : ℕ → X, ∃n, is_leading_limited f n s ∧ s 0 = a ∧ s n = b) := by
+theorem leads_alt_def {f : X → X} {a b : X} : leads f a b ↔ (∃s : ℕ → X, ∃n, is_leading_limited f n s ∧ s 0 = a ∧ s n = b) := by
   rw [leads_def]
   constructor
   ·
@@ -108,94 +113,94 @@ theorem leads_alt_def {X} {f : X → X} {a b : X} : leads f a b ↔ (∃s : ℕ 
 section old_sequence_leading_choose
 
 
-theorem sequence_leading' {X} (f : X → X) (a: X) : ∃!s : ℕ → X, (is_leading f s) ∧ s 0 = a := by
-  use sequence_leading f a
-  refine ⟨⟨?_,?_⟩,?_⟩
-  · unfold is_leading
-    intro i
-    rfl
-  · rfl
+-- theorem sequence_leading' {X} (f : X → X) (a: X) : ∃!s : ℕ → X, (is_leading f s) ∧ s 0 = a := by
+--   use sequence_leading f a
+--   refine ⟨⟨?_,?_⟩,?_⟩
+--   · unfold is_leading
+--     intro i
+--     rfl
+--   · rfl
 
-  intro s
-  simp only [and_imp]
-  intro l s0a
-  ext i
-  induction i with
-  | zero =>
-    rw [s0a]
-    rfl
-  | succ i' ih =>
-    have := l i'
-    rw [←this,ih]
-    rfl
-
-
-def sequence_leading_choose {X} (f : X → X) (a: X) : ℕ → X := (sequence_leading' f a).choose
-
-theorem sequence_leading_spec_A {X} (f : X → X) (a: X) : is_leading f (sequence_leading_choose f a) := (sequence_leading' f a).choose_spec.left.left
-
-theorem sequence_leading_spec_B {X} (f : X → X) (a: X) : (sequence_leading_choose f a) 0 = a := (sequence_leading' f a).choose_spec.left.right
+--   intro s
+--   simp only [and_imp]
+--   intro l s0a
+--   ext i
+--   induction i with
+--   | zero =>
+--     rw [s0a]
+--     rfl
+--   | succ i' ih =>
+--     have := l i'
+--     rw [←this,ih]
+--     rfl
 
 
-theorem sequence_leading_value {X} (f : X → X) (a: X) : (sequence_leading_choose f a) = sequence_leading f a := by
-  -- have t0:= (sequence_leading' f a).choose_spec
-  have seqq: ∀ (y : ℕ → X), (fun s ↦ is_leading f s ∧ s 0 = a) y → y = sequence_leading f a := by
-    -- copied from above
-    intro s
-    simp only [and_imp]
-    intro l s0a
-    ext i
-    induction i with
-    | zero => exact s0a
-    | succ i' ih =>
-      rw [←l i',ih]
-      rfl
-  have := seqq (sequence_leading_choose f a)
-  simp only [and_imp] at this
-  apply this
-  · unfold is_leading
-    intro i
-    apply sequence_leading_spec_A
-  apply sequence_leading_spec_B
+-- def sequence_leading_choose {X} (f : X → X) (a: X) : ℕ → X := (sequence_leading' f a).choose
+
+-- theorem sequence_leading_spec_A {X} (f : X → X) (a: X) : is_leading f (sequence_leading_choose f a) := (sequence_leading' f a).choose_spec.left.left
+
+-- theorem sequence_leading_spec_B {X} (f : X → X) (a: X) : (sequence_leading_choose f a) 0 = a := (sequence_leading' f a).choose_spec.left.right
 
 
-
--- theorem sequence_leading_unique {X} (f : X → X) (a: X) (s) : (is_leading f s) ∧ s 0 = a ↔ s = sequence_leading f a := by sorry
--- theorem sequence_leading_unique' {X} (f : X → X) (a: X) (s) : (is_leading f s) → s 0 = a → s = sequence_leading f a := by sorry
+-- theorem sequence_leading_value {X} (f : X → X) (a: X) : (sequence_leading_choose f a) = sequence_leading f a := by
+--   -- have t0:= (sequence_leading' f a).choose_spec
+--   have seqq: ∀ (y : ℕ → X), (fun s ↦ is_leading f s ∧ s 0 = a) y → y = sequence_leading f a := by
+--     -- copied from above
+--     intro s
+--     simp only [and_imp]
+--     intro l s0a
+--     ext i
+--     induction i with
+--     | zero => exact s0a
+--     | succ i' ih =>
+--       rw [←l i',ih]
+--       rfl
+--   have := seqq (sequence_leading_choose f a)
+--   simp only [and_imp] at this
+--   apply this
+--   · unfold is_leading
+--     intro i
+--     apply sequence_leading_spec_A
+--   apply sequence_leading_spec_B
 
 
 
-theorem sequence_leads_iff' {X} (f : X → X) (a b: X) : leads f a b ↔ ∃n, sequence_leading_choose f a n = b := by
-  constructor
-  ·
-    simp_rw [leads_alt_def]
+-- -- theorem sequence_leading_unique {X} (f : X → X) (a: X) (s) : (is_leading f s) ∧ s 0 = a ↔ s = sequence_leading f a := by sorry
+-- -- theorem sequence_leading_unique' {X} (f : X → X) (a: X) (s) : (is_leading f s) → s 0 = a → s = sequence_leading f a := by sorry
 
-    intro ⟨ab_s,ab_n,ab_yield,ab_0,ab_1⟩
-    use ab_n
-    rw [←ab_1]
-    have : ∀ i ≤ ab_n, sequence_leading_choose f a i = ab_s i := by
-      intro i i_le
-      induction i with
-      | zero => rw [sequence_leading_spec_B,ab_0]
-      | succ i' ih =>
-        have prev := ih (by linarith )
-        have t1:= sequence_leading_spec_A f a i'
-        have t2:= ab_yield i' (by linarith)
-        exact (prev ▸ t1) ▸ t2
-    exact this ab_n (by linarith only)
-  · intro ⟨n,w⟩
 
-    simp_rw [leads_alt_def]
-    refine ⟨(sequence_leading_choose f a), n, ?_,?_,?_⟩
-    · intro i _
-      exact sequence_leading_spec_A ..
-    · exact sequence_leading_spec_B ..
-    · exact w
+
+-- theorem sequence_leads_iff' {X} (f : X → X) (a b: X) : leads f a b ↔ ∃n, sequence_leading_choose f a n = b := by
+--   constructor
+--   ·
+--     simp_rw [leads_alt_def]
+
+--     intro ⟨ab_s,ab_n,ab_yield,ab_0,ab_1⟩
+--     use ab_n
+--     rw [←ab_1]
+--     have : ∀ i ≤ ab_n, sequence_leading_choose f a i = ab_s i := by
+--       intro i i_le
+--       induction i with
+--       | zero => rw [sequence_leading_spec_B,ab_0]
+--       | succ i' ih =>
+--         have prev := ih (by linarith )
+--         have t1:= sequence_leading_spec_A f a i'
+--         have t2:= ab_yield i' (by linarith)
+--         exact (prev ▸ t1) ▸ t2
+--     exact this ab_n (by linarith only)
+--   · intro ⟨n,w⟩
+
+--     simp_rw [leads_alt_def]
+--     refine ⟨(sequence_leading_choose f a), n, ?_,?_,?_⟩
+--     · intro i _
+--       exact sequence_leading_spec_A ..
+--     · exact sequence_leading_spec_B ..
+--     · exact w
 
 end old_sequence_leading_choose
 
 @[trans]
-theorem leads_trans {X} (f : X → X) (a b c: X) : leads f a b → leads f b c → leads f a c := by
+theorem leads_trans (f : X → X) (a b c: X) : leads f a b → leads f b c → leads f a c := by
   simp_rw [leads_def]
   intro ⟨an,fab⟩ ⟨bn,fbc⟩
   use (an + bn)
@@ -204,24 +209,65 @@ theorem leads_trans {X} (f : X → X) (a b c: X) : leads f a b → leads f b c �
   done
 
 
-theorem leads_self {X} (f : X → X) (a: X) : leads f a a := by
+theorem leads_self (f : X → X) (a: X) : leads f a a := by
   rw [leads_def]
   use 0
   exact sequence_leading_zero
 
 
 
--- structure sequence_le {X} (f : X → X) extends LE X, Preorder X where
-  -- toLE := leads
-  -- le := leads f
-  -- le_refl (x : X) :=
-  --   sorry
-    --leads_self f
-  -- le_trans := sorry
+-- is not a PartialOrder
+
+def leadsPreorder (f : X → X) : Preorder X where
+  le := leads f
+  le_refl := leads_self f
+  le_trans := leads_trans f
 
 
 
 
+def leads_preserves  {f : X → X} {a b : X} {p : X → Prop} (hp : ∀x, p x → p (f x)) (l : leads f a b) : p a → p b := by
+  intro pa
+  simp_rw [leads_def,sequence_leading_apply f a] at l
+  obtain ⟨n, w⟩ := l
+  have := Function.Iterate.rec p hp pa n
+  simp [w] at this
+  exact this
+
+
+def leads_preserves'  {f : X → X} {a b : X} {p : X → Prop} (hp : ∀x, p (f x) → p x) (l : leads f a b) : p b → p a := by
+  sorry
+
+
+lemma leads_connected1  {f : X → X} {a b c : X}
+    {nb : ℕ} (wb : sequence_leading f a nb = b)
+    {nc : ℕ} (wc : sequence_leading f a nc = c)
+    (hn : nb ≤ nc) : sequence_leading f b (nc - nb) = c := by
+  -- rw [leads_def]
+  -- use nc - nb
+  have : nc = nb + (nc - nb) := by
+    rw [←Nat.add_sub_assoc hn nb, add_tsub_cancel_left]
+  set m := nc - nb
+  have t:= wb ▸ sequence_leading_tail _ ▸ this ▸ wc
+  rw [this] at wc
+  rw [sequence_leading_tail] at wc
+  rw [wb] at wc
+  exact wc
+
+
+theorem leads_connected  {f : X → X} {a b c : X} (lb : leads f a b) (lc : leads f a c) : leads f b c ∨ leads f c b := by
+  simp_rw [leads_def] at lb lc ⊢
+  obtain ⟨nb,wb⟩ := lb
+  obtain ⟨nc,wc⟩ := lc
+  by_cases hn : nb ≤ nc
+  left
+  exact ⟨_,leads_connected1 wb wc hn⟩
+  right
+  exact ⟨_,leads_connected1 wc wb (by linarith only [hn])⟩
+
+
+-- untrue:
+-- def leads_connected'  {f : X → X} {a b c : X} (lb : leads f b a) (lc : leads f c a) : leads f b c ∨ leads f c b := by sorry
 
 end lead
 
@@ -251,6 +297,7 @@ structure TuringMachine  --[Fintype state_] [Fintype alphabet_]
   δ_alpha (q : Q) (a : G) := (δ q a).2.1
   δ_direction (q : Q) (a : G) := (δ q a).2.2
   rej_loop (a) : δ_state qRej a = qRej
+  acc_loop (a) : δ_state qAcc a = qAcc
 
 -- def TuringMachine.δ_state (M : @TuringMachine state_ alphabet_) (q : M.Q) (a : M.G) := (M.δ q a).1
 -- def TuringMachine.δ_alpha (M : @TuringMachine state_ alphabet_) (q : M.Q) (a : M.G) := (M.δ q a).2.1
@@ -275,7 +322,7 @@ def TuringConfiguration.yield {M : @TuringMachine state_ alphabet_} (C : TuringC
 
 
 def TuringConfiguration.leads' {M : @TuringMachine state_ alphabet_} (a : TuringConfiguration M) (b : TuringConfiguration M) : Prop :=
-    leads TuringConfiguration.yield a b
+    _root_.leads TuringConfiguration.yield a b
 
 def TuringConfiguration.acceptsImmediate {M : @TuringMachine state_ alphabet_} (a : TuringConfiguration M) : Prop :=
   a.q = M.qAcc
@@ -283,33 +330,55 @@ def TuringConfiguration.acceptsImmediate {M : @TuringMachine state_ alphabet_} (
 def TuringConfiguration.rejectsImmediate {M : @TuringMachine state_ alphabet_} (a : TuringConfiguration M) : Prop :=
   a.q = M.qRej
 
+
+theorem TuringConfiguration.exclusive_rejects_accepts {M : @TuringMachine state_ alphabet_} {a : TuringConfiguration M} :
+    a.acceptsImmediate → a.rejectsImmediate → False := by
+  intro aa ar
+  -- unfold rejectsImmediate at ar
+  -- unfold acceptsImmediate at aa
+  exact M.acc_neq_rej (aa ▸ ar)
+
+
+
+
 def TuringConfiguration.rejects_leads {M : @TuringMachine state_ alphabet_} (a : TuringConfiguration M) : Prop :=
   ∃b, b.rejectsImmediate ∧ a.leads' b
 
 def TuringConfiguration.accepts {M : @TuringMachine state_ alphabet_} (a : TuringConfiguration M) : Prop :=
   ∃b, b.acceptsImmediate ∧ a.leads' b
 
+theorem TuringConfiguration.rejectsImmediate_yield_rejectsImmediate {M : @TuringMachine state_ alphabet_} (a : TuringConfiguration M)
+    (h : a.rejectsImmediate) : a.yield.rejectsImmediate := by
+  unfold rejectsImmediate yield
+  simp only
+  rw [h,M.rej_loop]
+
+theorem TuringConfiguration.rejectsImmediate_leads_rejectsImmediate {M : @TuringMachine state_ alphabet_} (a b : TuringConfiguration M)
+    (h : a.rejectsImmediate) (hl : a.leads' b) : b.rejectsImmediate := by
+  exact leads_preserves TuringConfiguration.rejectsImmediate_yield_rejectsImmediate hl h
+
+
+theorem TuringConfiguration.acceptsImmediate_leads_acceptsImmediate {M : @TuringMachine state_ alphabet_} (a b : TuringConfiguration M)
+    (h : a.acceptsImmediate) (hl : a.leads' b) : b.acceptsImmediate := by
+  refine leads_preserves ?_ hl h
+  intro x hx
+  unfold acceptsImmediate yield
+  simp only
+  rw [hx,M.acc_loop]
+
 
 theorem TuringConfiguration.rejects_of_leads_rej {M : @TuringMachine state_ alphabet_} (C : TuringConfiguration M) :
     C.rejects_leads → ¬ C.accepts := by
   unfold rejects_leads accepts leads'
-  simp_rw [leads_alt_def]
-  intro ⟨rej,r_q,⟨rs,rn,r_yield,r0,r1⟩⟩
-  intro ⟨acc,a_q,⟨as,an,a_yield,a0,a1⟩⟩
-  have : ∀ i, i ≤ an → i ≤ rn → as i = rs i := by
-    intro i ian irn
-    induction i with
-    | zero => rw [a0, r0]
-    | succ i' ih =>
-      have prev := ih (by linarith only [ian]) (by linarith only [irn])
-      have t1 := a_yield i' (by linarith only [ian])
-      have t2 := r_yield i' (by linarith only [irn])
-      exact (prev ▸ t1) ▸ t2
+  intro ⟨rej,r_q,leads_r⟩
+  intro ⟨acc,a_q,leads_a⟩
+  have t0:= leads_connected leads_a leads_r
+  cases' t0 with t1 t2
+  have := acceptsImmediate_leads_acceptsImmediate _ rej a_q t1
+  exact rej.exclusive_rejects_accepts this r_q
+  have := rejectsImmediate_leads_rejectsImmediate _ acc r_q t2
+  exact acc.exclusive_rejects_accepts a_q this
 
-
-
-
-  sorry
 
 
 end ComputationOkko
