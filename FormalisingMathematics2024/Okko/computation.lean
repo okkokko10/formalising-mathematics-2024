@@ -624,10 +624,14 @@ def TuringConfiguration.yield (C : TuringConfiguration M) : TuringConfiguration 
 
 
 
+class AutomatonConfiguration (H : Type) where
+  yield (C : H) : H
+  acceptsImmediate (C : H) : Prop
+  rejectsImmediate (C : H) : Prop
+  rejectsImmediate_yield_rejectsImmediate (C : H) : rejectsImmediate C → rejectsImmediate (yield C)
+  acceptsImmediate_yield_acceptsImmediate (C : H) : acceptsImmediate C → acceptsImmediate (yield C)
+  exclusive_rejects_accepts_immediate (C : H) : rejectsImmediate C → acceptsImmediate C → False
 
-
-def TuringConfiguration.leads' (a : TuringConfiguration M) (b : TuringConfiguration M) : Prop :=
-    _root_.leads TuringConfiguration.yield a b
 
 def TuringConfiguration.acceptsImmediate (a : TuringConfiguration M) : Prop :=
   a.q = M.qAcc
@@ -635,8 +639,21 @@ def TuringConfiguration.acceptsImmediate (a : TuringConfiguration M) : Prop :=
 def TuringConfiguration.rejectsImmediate (a : TuringConfiguration M) : Prop :=
   a.q = M.qRej
 
-def TuringConfiguration.haltsImmediate (a : TuringConfiguration M) : Prop :=
-  a.rejectsImmediate ∨ a.acceptsImmediate
+
+
+theorem TuringConfiguration.rejectsImmediate_yield_rejectsImmediate (a : TuringConfiguration M)
+    (h : a.rejectsImmediate) : a.yield.rejectsImmediate := by
+  unfold rejectsImmediate yield
+  rw [h]
+  simp only [or_true, dite_eq_ite, ite_true]
+  rw [h]
+
+theorem TuringConfiguration.acceptsImmediate_yield_acceptsImmediate (a : TuringConfiguration M)
+    (h : a.acceptsImmediate) : a.yield.acceptsImmediate := by
+  unfold acceptsImmediate yield
+  rw [h]
+  simp only [true_or, dite_eq_ite, ite_true]
+  rw [h]
 
 theorem TuringConfiguration.exclusive_rejects_accepts_immediate {a : TuringConfiguration M} :
     a.acceptsImmediate → a.rejectsImmediate → False := by
@@ -645,16 +662,38 @@ theorem TuringConfiguration.exclusive_rejects_accepts_immediate {a : TuringConfi
   -- unfold acceptsImmediate at aa
   exact M.acc_neq_rej (aa ▸ ar)
 
-def TuringConfiguration.halt_rejects (a : TuringConfiguration M) : Prop :=
-  ∃b, b.rejectsImmediate ∧ a.leads' b
 
-def TuringConfiguration.accepts (a : TuringConfiguration M) : Prop :=
-  ∃b, b.acceptsImmediate ∧ a.leads' b
+instance : AutomatonConfiguration (TuringConfiguration M) where
+  yield (C) := TuringConfiguration.yield C
+  acceptsImmediate (C) := TuringConfiguration.acceptsImmediate C
+  rejectsImmediate (C) := TuringConfiguration.rejectsImmediate C
+  rejectsImmediate_yield_rejectsImmediate (C) (h) := TuringConfiguration.rejectsImmediate_yield_rejectsImmediate C h
+  acceptsImmediate_yield_acceptsImmediate (C) (h) := TuringConfiguration.acceptsImmediate_yield_acceptsImmediate C h
+  exclusive_rejects_accepts_immediate (_) (hr) (ha) := TuringConfiguration.exclusive_rejects_accepts_immediate ha hr
 
-def TuringConfiguration.halts (a : TuringConfiguration M) : Prop :=
-  a.accepts ∨ a.halt_rejects
 
-theorem TuringConfiguration.halts_def (a : TuringConfiguration M) : a.halts ↔ ∃b, (b.haltsImmediate) ∧ a.leads' b := by
+variable {H} [AutomatonConfiguration H]
+
+
+def AutomatonConfiguration.leads' (a : H) (b : H) : Prop :=
+    _root_.leads yield a b
+
+
+def AutomatonConfiguration.haltsImmediate (a : H) : Prop :=
+  rejectsImmediate a ∨ acceptsImmediate a
+
+
+
+def AutomatonConfiguration.halt_rejects (a : H) : Prop :=
+  ∃b, rejectsImmediate b ∧ leads' a b
+
+def AutomatonConfiguration.accepts (a : H) : Prop :=
+  ∃b, acceptsImmediate b ∧ leads' a b
+
+def AutomatonConfiguration.halts (a : H) : Prop :=
+  accepts a ∨ halt_rejects a
+
+theorem AutomatonConfiguration.halts_def (a : H) : halts a ↔ ∃b, (haltsImmediate b) ∧ leads' a b := by
   unfold haltsImmediate halts accepts halt_rejects
   -- constructor
   -- · intro l
@@ -673,43 +712,29 @@ theorem TuringConfiguration.halts_def (a : TuringConfiguration M) : a.halts ↔ 
   --   use b
   aesop
 
-theorem TuringConfiguration.rejectsImmediate_yield_rejectsImmediate (a : TuringConfiguration M)
-    (h : a.rejectsImmediate) : a.yield.rejectsImmediate := by
-  unfold rejectsImmediate yield
-  rw [h]
-  simp only [or_true, dite_eq_ite, ite_true]
-  rw [h]
 
-theorem TuringConfiguration.acceptsImmediate_yield_acceptsImmediate (a : TuringConfiguration M)
-    (h : a.acceptsImmediate) : a.yield.acceptsImmediate := by
-  unfold acceptsImmediate yield
-  rw [h]
-  simp only [true_or, dite_eq_ite, ite_true]
-  rw [h]
+theorem AutomatonConfiguration.rejectsImmediate_leads_rejectsImmediate {a b : H}
+    (hl : leads' a b) (h : rejectsImmediate a) : rejectsImmediate b := by
+  exact leads_preserves rejectsImmediate_yield_rejectsImmediate hl h
 
 
-theorem TuringConfiguration.rejectsImmediate_leads_rejectsImmediate {a b : TuringConfiguration M}
-    (hl : a.leads' b) (h : a.rejectsImmediate) : b.rejectsImmediate := by
-  exact leads_preserves TuringConfiguration.rejectsImmediate_yield_rejectsImmediate hl h
-
-
-theorem TuringConfiguration.acceptsImmediate_leads_acceptsImmediate {a b : TuringConfiguration M}
-    (hl : a.leads' b) (h : a.acceptsImmediate) : b.acceptsImmediate := by
-  refine leads_preserves TuringConfiguration.acceptsImmediate_yield_acceptsImmediate hl h
+theorem AutomatonConfiguration.acceptsImmediate_leads_acceptsImmediate {a b : H}
+    (hl : leads' a b) (h : acceptsImmediate a) : acceptsImmediate b := by
+  refine leads_preserves acceptsImmediate_yield_acceptsImmediate hl h
 
 
 -- if C rejects, so does its predecessor and successor
-theorem TuringConfiguration.rejects_stable (C : TuringConfiguration M): halt_rejects C ↔ halt_rejects C.yield := by
+theorem AutomatonConfiguration.rejects_stable (a : H): halt_rejects a ↔ halt_rejects (yield a) := by
 
 
   unfold halt_rejects leads'
-  by_cases h : C.rejectsImmediate
+  by_cases h : rejectsImmediate a
   constructor
   intro _
-  use (C.yield)
+  use (yield a)
   constructor
-  exact rejectsImmediate_yield_rejectsImmediate C h
-  exact leads_self yield (yield C)
+  exact rejectsImmediate_yield_rejectsImmediate a h
+  exact leads_self yield (yield a)
   sorry
   unfold leads
   simp_rw [←sequence_leading_succ']
@@ -722,17 +747,17 @@ theorem TuringConfiguration.rejects_stable (C : TuringConfiguration M): halt_rej
   sorry
 
 
-theorem TuringConfiguration.exclusive_rejects_accepts (C : TuringConfiguration M) :
-    C.halt_rejects → C.accepts → False := by
+theorem AutomatonConfiguration.exclusive_rejects_accepts (a : H) :
+    halt_rejects a → accepts a → False := by
   unfold halt_rejects accepts leads'
   intro ⟨rej,r_q,leads_r⟩
   intro ⟨acc,a_q,leads_a⟩
   have t0 := leads_connected leads_a leads_r
   cases' t0 with t1 t2
   have := acceptsImmediate_leads_acceptsImmediate t1 a_q
-  exact rej.exclusive_rejects_accepts_immediate this r_q
+  exact exclusive_rejects_accepts_immediate rej r_q this
   have := rejectsImmediate_leads_rejectsImmediate t2 r_q
-  exact acc.exclusive_rejects_accepts_immediate a_q this
+  exact exclusive_rejects_accepts_immediate acc this a_q
 
 
 
@@ -741,22 +766,23 @@ def TuringMachine.use (tape : Tape G) : TuringConfiguration M where
   tape := tape
   index := 0
   index_bounded := Nat.zero_le _
-def TuringMachine.accepts (tape : Tape G) : Prop := (M.use tape).accepts
-def TuringMachine.halt_rejects (tape : Tape G) : Prop := (M.use tape).halt_rejects
+def TuringMachine.accepts (tape : Tape G) : Prop := AutomatonConfiguration.accepts (M.use tape)
+def TuringMachine.halt_rejects (tape : Tape G) : Prop := AutomatonConfiguration.halt_rejects (M.use tape)
 
-def TuringMachine.total : Prop := ∀ tape : Tape G, (M.use tape).halts
+def TuringMachine.total : Prop := ∀ tape : Tape G, AutomatonConfiguration.halts (M.use tape)
 
 
 -- on all inputs, both turing machines have the same output.
 def TuringMachine.same {Q1 Q2 : Type} {G : Type} [DecidableEq Q1] [DecidableEq Q2] [DecidableEq G]
-    (A : TuringMachine Q1 G) (B : TuringMachine Q2 G) := ∀ tape : Tape G, (A.use tape).accepts ↔ (B.use tape).accepts
+    (A : TuringMachine Q1 G) (B : TuringMachine Q2 G) := ∀ tape : Tape G, AutomatonConfiguration.accepts (A.use tape) ↔ AutomatonConfiguration.accepts (B.use tape)
 
 
-theorem TuringConfiguration.output_theorem (C : TuringConfiguration M) (h : C.halts) : ∃ b, (rejectsImmediate b ∨ acceptsImmediate b) ∧ leads' C b := (C.halts_def.mp h)
+theorem TuringConfiguration.output_theorem (C : TuringConfiguration M) (h : AutomatonConfiguration.halts C) : ∃ b,
+  (AutomatonConfiguration.rejectsImmediate b ∨ AutomatonConfiguration.acceptsImmediate b) ∧ AutomatonConfiguration.leads' C b := ((AutomatonConfiguration.halts_def C).mp h)
 
-def TuringConfiguration.output (C : TuringConfiguration M) (h : C.halts) := (C.output_theorem h).choose
-theorem TuringConfiguration.output_halts (C : TuringConfiguration M) (h : C.halts) : (C.output h).haltsImmediate := (C.output_theorem h).choose_spec.left
-theorem TuringConfiguration.output_leads (C : TuringConfiguration M) (h : C.halts) : C.leads' (C.output h) := (C.output_theorem h).choose_spec.right
+def TuringConfiguration.output (C : TuringConfiguration M) (h : AutomatonConfiguration.halts C) := (C.output_theorem h).choose
+theorem TuringConfiguration.output_halts (C : TuringConfiguration M) (h : AutomatonConfiguration.halts C) :AutomatonConfiguration.haltsImmediate (C.output h) := (C.output_theorem h).choose_spec.left
+theorem TuringConfiguration.output_leads (C : TuringConfiguration M) (h : AutomatonConfiguration.halts C) : AutomatonConfiguration.leads' C (C.output h) := (C.output_theorem h).choose_spec.right
 
 def TuringMachine.output (tape : Tape G) := (M.use tape).output
 -- #check Option
