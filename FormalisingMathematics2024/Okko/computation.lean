@@ -293,10 +293,10 @@ end lead
 
 
 
-variable {Q G : Type} [Zero G]
+variable {Q G : Type} [DecidableEq Q] [DecidableEq G]
 
 -- a looser ruleset
-structure TuringMachine2 (Q : Type) (G : Type) [Zero G]
+structure TuringMachine2 (Q : Type) (G : Type)
   where
   -- δ : Q → G → Q × G × Bool
   -- Q := state_ -- states
@@ -311,16 +311,30 @@ structure TuringMachine2 (Q : Type) (G : Type) [Zero G]
   δ_state (q : Q) (a : G) := (δ q a).1
   δ_alpha (q : Q) (a : G) := (δ q a).2.1
   δ_direction (q : Q) (a : G) := (δ q a).2.2
-  rej_loop (a) : δ_state qRej a = qRej
-  acc_loop (a) : δ_state qAcc a = qAcc
+  -- rej_loop (a) : δ_state qRej a = qRej
+  -- acc_loop (a) : δ_state qAcc a = qAcc
+
+  δ_left : Q → Q -- the case when a = leftChar
+  δ_right : Q → Q -- the case when a = rightChar
+  δ_right_alpha : Q → (Option G) -- the case when a = rightChar
+  -- δ_left_rej_loop : δ_left qRej = qRej -- the case when a = leftChar
 
 
-structure TuringMachine extends (@TuringMachine2 Q G _)  --[Fintype state_] [Fintype alphabet_]
+
+-- maybe have both in singleton types
+inductive LeftRightChar
+| leftChar
+| rightChar
+
+
+def leftChar {A : Type} := Sum.inr (α := A) LeftRightChar.leftChar
+def rightChar {A : Type} := Sum.inr (α := A) LeftRightChar.rightChar
+
+
+structure TuringMachine extends (TuringMachine2 Q (Sum G LeftRightChar))  --[Fintype state_] [Fintype alphabet_]
   where
-  leftChar : G
-  rightChar : G
   transition_left {q : Q} : (δ q leftChar).2 = ⟨leftChar,True⟩
-  transition_left_r {q : Q} (a): (δ q a).2.1 = leftChar → a = leftChar
+  transition_left_r {q : Q} (a): (δ q a).2.1 = (leftChar) → a = (leftChar)
   transition_right {q : Q} (a): (δ q a).2.1 = rightChar → (a = rightChar ∧ (δ q a).2.2 = False)
 
 -- def TuringMachine.δ_state (M : @TuringMachine state_ alphabet_) (q : M.Q) (a : M.G) := (M.δ q a).1
@@ -334,25 +348,180 @@ structure TuringMachine extends (@TuringMachine2 Q G _)  --[Fintype state_] [Fin
 
 -- TODO: Actually the tape rightChar has a purpose in telling the automaton that the finite input has ended.
 
+structure Tape (G : Type) where
+  toFun : ℕ → Sum G LeftRightChar
+  start : toFun 0 = leftChar
+  non_start : (∀ i, i = 0 ↔ toFun i = leftChar) -- replace start with this altogether
+  trail : ∃n, (∀ i, n ≤ i ↔ toFun i = rightChar)
 
-structure TuringConfiguration (M : @TuringMachine2 Q G _) where
+instance {G : Type} : CoeFun (Tape G) (fun _ ↦ ℕ → Sum G LeftRightChar) where
+  coe w := w.toFun
+theorem Tape.trail_specific (t : Tape G) : ∃!n, (∀ i, n ≤ i ↔ t i = rightChar) := by
+  have ⟨n,n_spec⟩ := t.trail
+  use n
+  constructor
+  simp
+  exact fun i ↦ n_spec i
+  simp
+  intro y y_spec
+  have tt(i) : y ≤ i ↔ n ≤ i := by rw [y_spec i,n_spec i]
+  have t1:= tt y
+  have t2:= tt n
+  simp only [le_refl, iff_true, true_iff] at t2 t1
+  linarith
+
+
+
+
+def tapeAlpha (a : G) := Sum.inl (β := LeftRightChar) a
+
+theorem tapeAlpha_not_char {a : G} : ¬ tapeAlpha a = rightChar := by
+    unfold tapeAlpha rightChar
+    simp
+
+
+def Tape.update (t : Tape G) {i : ℕ} (h : 0 < i) (a : G) : Tape G where
+  -- toFun := Function.update t.toFun i (tapeAlpha a)
+  toFun := fun n ↦ if n = i then tapeAlpha a else t.toFun n
+  start := by
+    -- unfold Function.update
+    simp only [h.ne, ite_false]
+    exact t.start
+  non_start := sorry
+  trail := by
+    have ⟨n, n_spec, n_unique⟩ := t.trail_specific
+    simp only at n_spec
+    simp
+    by_cases hw : i < n
+    {
+    use n
+    intro ii
+    refine ⟨?_,?_⟩
+    intro nii
+    have : ¬ii = i := by linarith
+    simp only [this, ite_false]
+    exact (n_spec ii).mp nii
+    intro w
+    split at w
+    {
+    exfalso
+    exact tapeAlpha_not_char w
+    }
+    exact (n_spec ii).mpr w
+    }
+    have : i ≤ n := sorry -- TODO: this must be required
+    have e: i = n := by linarith
+    use n + 1
+    intro ii
+    split
+    {
+      simp only [tapeAlpha_not_char, iff_false, not_le]
+      linarith
+    }
+    by_cases hhh : n + 1 ≤ ii
+    simp [hhh]
+    rw [← (n_spec ii)]
+    linarith
+    simp [hhh]
+    rw [← (n_spec ii)]
+    simp
+    simp at hhh
+    rename_i hx
+    rw [e] at hx
+    have : ii ≤ n := by linarith
+    exact Nat.lt_of_le_of_ne this hx
+
+
+
+-- def Tape.updateRight {G : Type} (t : Tape G) {i : ℕ} (h : 0 < i) (a : G) : Tape G where
+--   toFun := fun n ↦ if n = i then tapeAlpha a else t.toFun n
+--   start := by
+--     simp only [h.ne, ite_false]
+--     exact t.start
+
+
+
+
+structure TuringConfiguration (M : TuringMachine2 Q G) where
   q : Q
   -- tape : ℕ → M.G
   -- tape : Finsupp ℕ M.G M.Gz
-  tape : ℤ →₀ G
-  index : ℤ
+  tape : Tape G
+  index : ℕ
   -- u : List M.G
-  a : G := tape index
+  a : Sum G LeftRightChar := tape index
   -- v : List M.G
 
-variable {M : @TuringMachine2 Q G _}
+variable {M : TuringMachine2 Q G}
 
 
-def TuringConfiguration.yield (C : TuringConfiguration M) : TuringConfiguration M where
-  q := M.δ_state C.q C.a
-  -- tape := fun n ↦ if n = C.index then (M.δ_alpha C.q C.a) else C.tape n
-  tape := C.tape.update C.index (M.δ_alpha C.q C.a)
-  index := if (M.δ_direction C.q C.a) then C.index + 1 else C.index - 1
+def TuringConfiguration.yield_base (M : TuringMachine2 Q G) (tape : Tape G) (index : ℕ) (q : Q) (a : G) : TuringConfiguration M where
+  q := M.δ_state q a
+  tape := Tape.update tape (i := index) sorry (M.δ_alpha q a)
+  index := if TuringMachine2.δ_direction M q a = true then index + 1 else index - 1
+
+-- deprecated
+def TuringConfiguration.yield2 (C : TuringConfiguration M) : TuringConfiguration M where
+  q := by
+    cases C.a with
+    | inl a =>   exact M.δ_state C.q a
+    | inr rlc => exact M.δ_left C.q
+  -- M.δ_state C.q C.a
+  tape := by
+    cases C.a with
+    | inl a =>   exact Tape.update C.tape (i := C.index) sorry (M.δ_alpha C.q a)
+    | inr rlc => exact C.tape
+  -- tape := C.tape.update C.index (M.δ_alpha C.q C.a)
+  index := by
+    cases C.a with
+    | inl a => exact if (M.δ_direction C.q a) then C.index + 1 else C.index - 1
+    | inr rlc =>
+      match rlc with
+      | LeftRightChar.leftChar => exact C.index + 1
+      | LeftRightChar.rightChar => exact C.index - 1
+  -- if (M.δ_direction C.q C.a) then C.index + 1 else C.index - 1
+
+def TuringConfiguration.yield_left (C : TuringConfiguration M) : TuringConfiguration M where
+  q := M.δ_left C.q
+  -- M.δ_state C.q C.a
+  tape := C.tape
+  -- tape := C.tape.update C.index (M.δ_alpha C.q C.a)
+  index := C.index + 1
+  -- if (M.δ_direction C.q C.a) then C.index + 1 else C.index - 1
+def TuringConfiguration.yield_right (C : TuringConfiguration M)  : TuringConfiguration M where
+  q := M.δ_right C.q
+  -- M.δ_state C.q C.a
+  tape := by
+    match M.δ_right_alpha C.q with
+    | none => exact C.tape
+    | some a => exact Tape.update C.tape (i := C.index) sorry a
+  -- tape := C.tape.update C.index (M.δ_alpha C.q C.a)
+  index := C.index - 1
+  -- if (M.δ_direction C.q C.a) then C.index + 1 else C.index - 1
+
+
+def TuringConfiguration.yield1 (C : TuringConfiguration M) : TuringConfiguration M :=
+  if C.q = M.qAcc ∨ C.q = M.qRej then C
+  else
+  Sum.casesOn (motive := fun t ↦ C.a = t → TuringConfiguration M) C.a
+    (fun a _ ↦ yield_base M C.tape C.index C.q a)
+    (fun rlc _ ↦
+      match rlc with
+      | LeftRightChar.leftChar => yield_left C
+      | LeftRightChar.rightChar => yield_right C)
+    (by rfl)
+
+def TuringConfiguration.yield (C : TuringConfiguration M) : TuringConfiguration M := by
+  by_cases C.q = M.qAcc ∨ C.q = M.qRej
+  · exact C
+  cases C.a with
+  | inl a => exact TuringConfiguration.yield_base M C.tape C.index C.q a
+  | inr rlc =>
+    match rlc with
+    | LeftRightChar.leftChar => exact C.yield_left
+    | LeftRightChar.rightChar => exact C.yield_right
+  -- if (M.δ_direction C.q C.a) then C.index + 1 else C.index - 1
+
 
 
 
@@ -406,8 +575,16 @@ theorem TuringConfiguration.halts_def (a : TuringConfiguration M) : a.halts ↔ 
 theorem TuringConfiguration.rejectsImmediate_yield_rejectsImmediate (a : TuringConfiguration M)
     (h : a.rejectsImmediate) : a.yield.rejectsImmediate := by
   unfold rejectsImmediate yield
-  simp only
-  rw [h,M.rej_loop]
+  rw [h]
+  simp only [or_true, dite_eq_ite, ite_true]
+  rw [h]
+
+theorem TuringConfiguration.acceptsImmediate_yield_acceptsImmediate (a : TuringConfiguration M)
+    (h : a.acceptsImmediate) : a.yield.acceptsImmediate := by
+  unfold acceptsImmediate yield
+  rw [h]
+  simp only [true_or, dite_eq_ite, ite_true]
+  rw [h]
 
 
 theorem TuringConfiguration.rejectsImmediate_leads_rejectsImmediate {a b : TuringConfiguration M}
@@ -417,11 +594,7 @@ theorem TuringConfiguration.rejectsImmediate_leads_rejectsImmediate {a b : Turin
 
 theorem TuringConfiguration.acceptsImmediate_leads_acceptsImmediate {a b : TuringConfiguration M}
     (hl : a.leads' b) (h : a.acceptsImmediate) : b.acceptsImmediate := by
-  refine leads_preserves ?_ hl h
-  intro x hx
-  unfold acceptsImmediate yield
-  simp only
-  rw [hx,M.acc_loop]
+  refine leads_preserves TuringConfiguration.acceptsImmediate_yield_acceptsImmediate hl h
 
 
 -- if C rejects, so does its predecessor and successor
@@ -462,19 +635,19 @@ theorem TuringConfiguration.exclusive_rejects_accepts (C : TuringConfiguration M
 
 
 
-
-def TuringMachine2.use (tape : ℤ →₀ G) : TuringConfiguration M where
+def TuringMachine2.use (tape : Tape G) : TuringConfiguration M where
   q := M.q0
   tape := tape
   index := 0
-def TuringMachine2.accepts (tape : ℤ →₀ G) : Prop := (M.use tape).accepts
-def TuringMachine2.halt_rejects (tape : ℤ →₀ G) : Prop := (M.use tape).halt_rejects
+def TuringMachine2.accepts (tape : Tape G) : Prop := (M.use tape).accepts
+def TuringMachine2.halt_rejects (tape : Tape G) : Prop := (M.use tape).halt_rejects
 
-def TuringMachine2.total : Prop := ∀ tape : ℤ →₀ G, (M.use tape).halts
+def TuringMachine2.total : Prop := ∀ tape : Tape G, (M.use tape).halts
 
 
 -- on all inputs, both turing machines have the same output.
-def TuringMachine2.same {Q1 Q2 : Type} {G : Type} [Zero G] (A : @TuringMachine2 Q1 G _) (B : @TuringMachine2 Q2 G _) := ∀ tape : ℤ →₀ G, (A.use tape).accepts ↔ (B.use tape).accepts
+def TuringMachine2.same {Q1 Q2 : Type} {G : Type} [DecidableEq Q1] [DecidableEq Q2] [DecidableEq G]
+    (A : TuringMachine2 Q1 G) (B : TuringMachine2 Q2 G) := ∀ tape : Tape G, (A.use tape).accepts ↔ (B.use tape).accepts
 
 
 theorem TuringConfiguration.output_theorem (C : TuringConfiguration M) (h : C.halts) : ∃ b, (rejectsImmediate b ∨ acceptsImmediate b) ∧ leads' C b := (C.halts_def.mp h)
@@ -483,15 +656,15 @@ def TuringConfiguration.output (C : TuringConfiguration M) (h : C.halts) := (C.o
 theorem TuringConfiguration.output_halts (C : TuringConfiguration M) (h : C.halts) : (C.output h).haltsImmediate := (C.output_theorem h).choose_spec.left
 theorem TuringConfiguration.output_leads (C : TuringConfiguration M) (h : C.halts) : C.leads' (C.output h) := (C.output_theorem h).choose_spec.right
 
-def TuringMachine2.output (tape : ℤ →₀ G) := (M.use tape).output
+def TuringMachine2.output (tape : Tape G) := (M.use tape).output
 -- #check Option
-def TuringMachine2.total_output (h_total : M.total) (tape : ℤ →₀ G) := (M.use tape).output (h_total tape)
+def TuringMachine2.total_output (h_total : M.total) (tape : Tape G) := (M.use tape).output (h_total tape)
 
 
 def Comp (Q1 Q2 : Type) : Type := Sum Q1 Q2
 
-def TuringMachine2.comp {Q1 Q2 : Type} {G : Type} [Zero G]
-    (A : @TuringMachine2 Q1 G _) (B : @TuringMachine2 Q2 G _) : TuringMachine2 (Comp Q1 Q2) G where
+def TuringMachine2.comp {Q1 Q2 : Type} {G : Type} [DecidableEq G]
+    (A : TuringMachine2 Q1 G) (B : TuringMachine2 Q2 G) : TuringMachine2 (Comp Q1 Q2) G where
 
   δ := by
     intro q a
@@ -504,8 +677,11 @@ def TuringMachine2.comp {Q1 Q2 : Type} {G : Type} [Zero G]
   qRej := sorry
   q0 := sorry
   acc_neq_rej := sorry
-  rej_loop (a) := sorry
-  acc_loop (a) := sorry
+  -- rej_loop (a) := sorry
+  -- acc_loop (a) := sorry
+  δ_left := sorry
+  δ_right := sorry
+  δ_right_alpha := sorry
 
 
 
