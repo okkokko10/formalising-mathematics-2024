@@ -316,7 +316,7 @@ structure TuringMachine2 (Q : Type) (G : Type)
 
   δ_left : Q → Q -- the case when a = leftChar
   δ_right : Q → Q -- the case when a = rightChar
-  δ_right_alpha : Q → (Option G) -- the case when a = rightChar
+  δ_right_alpha : Q → (Option (G × Bool)) -- the case when a = rightChar
   -- δ_left_rej_loop : δ_left qRej = qRej -- the case when a = leftChar
 
 
@@ -356,6 +356,19 @@ structure Tape (G : Type) where
 
 instance {G : Type} : CoeFun (Tape G) (fun _ ↦ ℕ → Sum G LeftRightChar) where
   coe w := w.toFun
+
+
+-- @[ext]
+theorem nat_le_ext {a b : ℕ} : (∀i : ℕ, a ≤ i ↔ b ≤ i) → a = b := by
+  intro h
+  have t1:= h a
+  have t2:= h b
+  simp only [le_refl, iff_true, true_iff] at t2 t1
+  exact Nat.le_antisymm t2 t1
+
+
+
+
 theorem Tape.trail_specific (t : Tape G) : ∃!n, (∀ i, n ≤ i ↔ t i = rightChar) := by
   have ⟨n,n_spec⟩ := t.trail
   use n
@@ -365,32 +378,40 @@ theorem Tape.trail_specific (t : Tape G) : ∃!n, (∀ i, n ≤ i ↔ t i = righ
   simp
   intro y y_spec
   have tt(i) : y ≤ i ↔ n ≤ i := by rw [y_spec i,n_spec i]
-  have t1:= tt y
-  have t2:= tt n
-  simp only [le_refl, iff_true, true_iff] at t2 t1
-  linarith
+  exact nat_le_ext tt
 
+def Tape.edge (t : Tape G) := t.trail_specific.choose
 
+theorem Tape.edge_spec (t : Tape G) : ∀i, t.edge ≤ i ↔ t i = rightChar := t.trail_specific.choose_spec.1
+
+theorem Tape.edge_pos (t : Tape G) : 0 < t.edge := by sorry -- if it was 0, t.start would be contradicted.
 
 
 def tapeAlpha (a : G) := Sum.inl (β := LeftRightChar) a
 
+@[simp]
 theorem tapeAlpha_not_char {a : G} : ¬ tapeAlpha a = rightChar := by
     unfold tapeAlpha rightChar
     simp
 
+@[simp]
+theorem tapeAlpha_not_char' {a : G} : ¬ tapeAlpha a = leftChar := by
+    unfold tapeAlpha leftChar
+    simp
 
-def Tape.update (t : Tape G) {i : ℕ} (h : 0 < i) (a : G) : Tape G where
+
+def Tape.update (t : Tape G) (i : ℕ) (h : i ≠ 0) (hn : i ≤ t.edge) (a : G) : Tape G where
   -- toFun := Function.update t.toFun i (tapeAlpha a)
   toFun := fun n ↦ if n = i then tapeAlpha a else t.toFun n
   start := by
     -- unfold Function.update
-    simp only [h.ne, ite_false]
+    simp only [h.symm, ite_false]
     exact t.start
   non_start := sorry
   trail := by
-    have ⟨n, n_spec, n_unique⟩ := t.trail_specific
-    simp only at n_spec
+    -- have ⟨n, n_spec, n_unique⟩ := t.trail_specific
+    let n := t.edge
+    have n_spec := t.edge_spec
     simp
     by_cases hw : i < n
     {
@@ -398,7 +419,7 @@ def Tape.update (t : Tape G) {i : ℕ} (h : 0 < i) (a : G) : Tape G where
     intro ii
     refine ⟨?_,?_⟩
     intro nii
-    have : ¬ii = i := by linarith
+    have : ¬ii = i := by linarith only [nii, hw]
     simp only [this, ite_false]
     exact (n_spec ii).mp nii
     intro w
@@ -409,8 +430,8 @@ def Tape.update (t : Tape G) {i : ℕ} (h : 0 < i) (a : G) : Tape G where
     }
     exact (n_spec ii).mpr w
     }
-    have : i ≤ n := sorry -- TODO: this must be required
-    have e: i = n := by linarith
+    -- have : i ≤ n := by linarith  -- TODO: this must be required
+    have e: i = n := by linarith only [hw, hn]
     use n + 1
     intro ii
     split
@@ -419,18 +440,50 @@ def Tape.update (t : Tape G) {i : ℕ} (h : 0 < i) (a : G) : Tape G where
       linarith
     }
     by_cases hhh : n + 1 ≤ ii
-    simp [hhh]
+    simp only [hhh, true_iff]
     rw [← (n_spec ii)]
     linarith
-    simp [hhh]
+    simp only [hhh, false_iff]
     rw [← (n_spec ii)]
-    simp
-    simp at hhh
+    simp only [not_le]
+    simp only [not_le] at hhh
     rename_i hx
     rw [e] at hx
     have : ii ≤ n := by linarith
     exact Nat.lt_of_le_of_ne this hx
 
+-- theorem Tape.update_apply {t : Tape G} {a : G} (i : ℕ) (h : i ≠ 0) (hn : i ≤ t.edge) (j : ℕ) : if j = i then (t.update i h (hn) a) j = a else
+
+theorem Tape.unupdated_edge {t : Tape G} {a : G} (i : ℕ) (h : i ≠ 0) (hn : i < t.edge) : (t.update i h (hn.le) a).edge = t.edge := by
+  set f :=  (t.update i h (hn.le) a)
+  have (j) : f j = rightChar ↔ t j = rightChar := by
+    simp only [update]
+    split
+    · simp only [tapeAlpha_not_char, false_iff]
+      intro q
+      rw [←t.edge_spec j] at q
+      linarith
+    rfl
+  simp only [edge, this]
+
+theorem Tape.updated_edge {t : Tape G} {a : G} : (t.update t.edge (t.edge_pos.ne') (Nat.le_refl _) a).edge = t.edge + 1 := by
+  -- unfold update
+  set f := (t.update t.edge (t.edge_pos.ne') (Nat.le_refl _) a)
+  -- #check
+  apply nat_le_ext
+  intro i
+  rw [f.edge_spec i]
+  simp only [update]
+  split
+  · simp only [tapeAlpha_not_char, false_iff]
+    linarith
+  rw [←t.edge_spec i]
+  rename_i h
+  constructor
+  intro w
+  exact Ne.lt_of_le' h w
+  intro w
+  exact Nat.le_of_lt w
 
 
 -- def Tape.updateRight {G : Type} (t : Tape G) {i : ℕ} (h : 0 < i) (a : G) : Tape G where
@@ -449,78 +502,125 @@ structure TuringConfiguration (M : TuringMachine2 Q G) where
   tape : Tape G
   index : ℕ
   -- u : List M.G
-  a : Sum G LeftRightChar := tape index
+
   -- v : List M.G
+  index_bounded : index ≤ tape.edge
 
 variable {M : TuringMachine2 Q G}
 
+def TuringConfiguration.a (C : TuringConfiguration M)  : Sum G LeftRightChar := C.tape C.index
 
-def TuringConfiguration.yield_base (M : TuringMachine2 Q G) (tape : Tape G) (index : ℕ) (q : Q) (a : G) : TuringConfiguration M where
+def TuringConfiguration.at_left (C : TuringConfiguration M) : Prop := C.a = leftChar
+def TuringConfiguration.at_right (C : TuringConfiguration M) : Prop := C.a = rightChar
+
+theorem TuringConfiguration.at_left_0 {C : TuringConfiguration M} : C.at_left ↔ C.index = 0 := sorry
+theorem TuringConfiguration.at_right_edge {C : TuringConfiguration M} : C.at_right ↔ C.index = C.tape.edge := sorry
+
+
+def TuringConfiguration.yield_base (M : TuringMachine2 Q G) (tape : Tape G) (index : ℕ) (h : index ≠ 0) (hn : index < tape.edge) (q : Q) (a : G) : TuringConfiguration M where
   q := M.δ_state q a
-  tape := Tape.update tape (i := index) sorry (M.δ_alpha q a)
+  tape := Tape.update tape index h hn.le (M.δ_alpha q a)
   index := if TuringMachine2.δ_direction M q a = true then index + 1 else index - 1
+  index_bounded := sorry
 
 -- deprecated
-def TuringConfiguration.yield2 (C : TuringConfiguration M) : TuringConfiguration M where
-  q := by
-    cases C.a with
-    | inl a =>   exact M.δ_state C.q a
-    | inr rlc => exact M.δ_left C.q
-  -- M.δ_state C.q C.a
-  tape := by
-    cases C.a with
-    | inl a =>   exact Tape.update C.tape (i := C.index) sorry (M.δ_alpha C.q a)
-    | inr rlc => exact C.tape
-  -- tape := C.tape.update C.index (M.δ_alpha C.q C.a)
-  index := by
-    cases C.a with
-    | inl a => exact if (M.δ_direction C.q a) then C.index + 1 else C.index - 1
-    | inr rlc =>
-      match rlc with
-      | LeftRightChar.leftChar => exact C.index + 1
-      | LeftRightChar.rightChar => exact C.index - 1
-  -- if (M.δ_direction C.q C.a) then C.index + 1 else C.index - 1
+-- def TuringConfiguration.yield2 (C : TuringConfiguration M) : TuringConfiguration M where
+--   q := by
+--     cases C.a with
+--     | inl a =>   exact M.δ_state C.q a
+--     | inr rlc => exact M.δ_left C.q
+--   -- M.δ_state C.q C.a
+--   tape := by
+--     cases C.a with
+--     | inl a =>   exact Tape.update C.tape (i := C.index) sorry (M.δ_alpha C.q a)
+--     | inr rlc => exact C.tape
+--   -- tape := C.tape.update C.index (M.δ_alpha C.q C.a)
+--   index := by
+--     cases C.a with
+--     | inl a => exact if (M.δ_direction C.q a) then C.index + 1 else C.index - 1
+--     | inr rlc =>
+--       match rlc with
+--       | LeftRightChar.leftChar => exact C.index + 1
+--       | LeftRightChar.rightChar => exact C.index - 1
+--   -- if (M.δ_direction C.q C.a) then C.index + 1 else C.index - 1
 
-def TuringConfiguration.yield_left (C : TuringConfiguration M) : TuringConfiguration M where
+def TuringConfiguration.yield_left (C : TuringConfiguration M) (h : C.at_left) : TuringConfiguration M where
   q := M.δ_left C.q
-  -- M.δ_state C.q C.a
   tape := C.tape
-  -- tape := C.tape.update C.index (M.δ_alpha C.q C.a)
   index := C.index + 1
-  -- if (M.δ_direction C.q C.a) then C.index + 1 else C.index - 1
-def TuringConfiguration.yield_right (C : TuringConfiguration M)  : TuringConfiguration M where
+  index_bounded := by
+    have t1:= at_left_0.mp h
+    have t2:= C.tape.edge_pos
+    exact Eq.trans_le (congrFun (congrArg HAdd.hAdd t1) 1) t2
+    -- linarith only [at_left_0.mp h,C.tape.edge_pos]
+
+def TuringConfiguration.yield_right (C : TuringConfiguration M) (h : C.at_right)  : TuringConfiguration M where
   q := M.δ_right C.q
-  -- M.δ_state C.q C.a
-  tape := by
+  tape :=
+    -- have atEdge := at_right_edge.mp h
     match M.δ_right_alpha C.q with
-    | none => exact C.tape
-    | some a => exact Tape.update C.tape (i := C.index) sorry a
-  -- tape := C.tape.update C.index (M.δ_alpha C.q C.a)
-  index := C.index - 1
-  -- if (M.δ_direction C.q C.a) then C.index + 1 else C.index - 1
+    | some ⟨a,d⟩  => Tape.update C.tape C.index (by rw [at_right_edge.mp h]; exact (Tape.edge_pos _).ne') (at_right_edge.mp h).le a
+    | none => C.tape
+  index := match M.δ_right_alpha C.q with
+    | some (a, true) => C.index + 1
+    | _ => C.index - 1
+    -- | none => exact C.index - 1
+    -- | some ⟨a,d⟩  => exact C.index - 1
+  --if Option.any (fun ⟨a,d⟩ ↦ d) (M.δ_right_alpha C.q) then C.index + 1 else C.index - 1
+  index_bounded := by
+    have atEdge := at_right_edge.mp h
+    simp only [atEdge] -- for some reason `rw` fails: "motive is not type correct"
+    match M.δ_right_alpha C.q with
+    | some (a, true) =>
+      simp only
+      rw [Tape.updated_edge]
+    | some (a, false) =>
+      --C.index - 1
+      simp only [tsub_le_iff_right, ge_iff_le]
+      rw [C.tape.updated_edge]
+      linarith only
+    | none => simp only [tsub_le_iff_right, le_add_iff_nonneg_right, zero_le]
 
 
-def TuringConfiguration.yield1 (C : TuringConfiguration M) : TuringConfiguration M :=
-  if C.q = M.qAcc ∨ C.q = M.qRej then C
-  else
-  Sum.casesOn (motive := fun t ↦ C.a = t → TuringConfiguration M) C.a
-    (fun a _ ↦ yield_base M C.tape C.index C.q a)
-    (fun rlc _ ↦
-      match rlc with
-      | LeftRightChar.leftChar => yield_left C
-      | LeftRightChar.rightChar => yield_right C)
-    (by rfl)
+
+
+-- def TuringConfiguration.yield1 (C : TuringConfiguration M) : TuringConfiguration M :=
+--   if C.q = M.qAcc ∨ C.q = M.qRej then C
+--   else
+--   Sum.casesOn (motive := fun t ↦ C.a = t → TuringConfiguration M) C.a
+--     (fun a _ ↦ yield_base M C.tape C.index C.q a)
+--     (fun rlc _ ↦
+--       match rlc with
+--       | LeftRightChar.leftChar => yield_left C
+--       | LeftRightChar.rightChar => yield_right C)
+--     (by rfl)
 
 def TuringConfiguration.yield (C : TuringConfiguration M) : TuringConfiguration M := by
   by_cases C.q = M.qAcc ∨ C.q = M.qRej
   · exact C
-  cases C.a with
-  | inl a => exact TuringConfiguration.yield_base M C.tape C.index C.q a
+  cases h : C.a with
+  | inl a =>
+    exact TuringConfiguration.yield_base M C.tape C.index
+      (by
+      unfold TuringConfiguration.a at h
+      intro c0
+      rw [c0] at h
+      rw [Tape.start] at h
+      apply tapeAlpha_not_char'
+      rw [h]
+      rfl) (by
+      unfold TuringConfiguration.a at h
+      rw [←not_le]
+      intro c0
+      apply tapeAlpha_not_char
+      simp only [Tape.edge_spec] at c0
+      rw [←c0,h]
+      rfl) C.q a
   | inr rlc =>
     match rlc with
-    | LeftRightChar.leftChar => exact C.yield_left
-    | LeftRightChar.rightChar => exact C.yield_right
-  -- if (M.δ_direction C.q C.a) then C.index + 1 else C.index - 1
+    | LeftRightChar.leftChar => exact C.yield_left h
+    | LeftRightChar.rightChar => exact C.yield_right h
+
 
 
 
@@ -639,6 +739,7 @@ def TuringMachine2.use (tape : Tape G) : TuringConfiguration M where
   q := M.q0
   tape := tape
   index := 0
+  index_bounded := Nat.zero_le _
 def TuringMachine2.accepts (tape : Tape G) : Prop := (M.use tape).accepts
 def TuringMachine2.halt_rejects (tape : Tape G) : Prop := (M.use tape).halt_rejects
 
