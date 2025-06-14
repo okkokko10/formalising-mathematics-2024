@@ -296,7 +296,7 @@ end lead
 variable {Q G : Type} [DecidableEq Q] [DecidableEq G]
 
 -- a looser ruleset
-structure TuringMachine2 (Q : Type) (G : Type)
+structure TuringMachine (Q : Type) (G : Type)
   where
   -- δ : Q → G → Q × G × Bool
   -- Q := state_ -- states
@@ -331,17 +331,11 @@ def leftChar {A : Type} := Sum.inr (α := A) LeftRightChar.leftChar
 def rightChar {A : Type} := Sum.inr (α := A) LeftRightChar.rightChar
 
 
-structure TuringMachine extends (TuringMachine2 Q (Sum G LeftRightChar))  --[Fintype state_] [Fintype alphabet_]
-  where
-  transition_left {q : Q} : (δ q leftChar).2 = ⟨leftChar,True⟩
-  transition_left_r {q : Q} (a): (δ q a).2.1 = (leftChar) → a = (leftChar)
-  transition_right {q : Q} (a): (δ q a).2.1 = rightChar → (a = rightChar ∧ (δ q a).2.2 = False)
-
 -- def TuringMachine.δ_state (M : @TuringMachine state_ alphabet_) (q : M.Q) (a : M.G) := (M.δ q a).1
 -- def TuringMachine.δ_alpha (M : @TuringMachine state_ alphabet_) (q : M.Q) (a : M.G) := (M.δ q a).2.1
 -- def TuringMachine.δ_direction (M : @TuringMachine state_ alphabet_) (q : M.Q) (a : M.G) := (M.δ q a).2.2
 
--- instance (M : @TuringMachine2 Q G _) : Zero M.G := M.Gz
+-- instance (M : @TuringMachine Q G _) : Zero M.G := M.Gz
 
 
 -- TODO: replace ℤ in tape with an arbitrary type. this way it can be generalized to n-tape automata.
@@ -495,7 +489,7 @@ theorem Tape.updated_edge {t : Tape G} {a : G} : (t.update t.edge (t.edge_pos.ne
 
 
 
-structure TuringConfiguration (M : TuringMachine2 Q G) where
+structure TuringConfiguration (M : TuringMachine Q G) where
   q : Q
   -- tape : ℕ → M.G
   -- tape : Finsupp ℕ M.G M.Gz
@@ -506,7 +500,7 @@ structure TuringConfiguration (M : TuringMachine2 Q G) where
   -- v : List M.G
   index_bounded : index ≤ tape.edge
 
-variable {M : TuringMachine2 Q G}
+variable {M : TuringMachine Q G}
 
 def TuringConfiguration.a (C : TuringConfiguration M)  : Sum G LeftRightChar := C.tape C.index
 
@@ -517,11 +511,18 @@ theorem TuringConfiguration.at_left_0 {C : TuringConfiguration M} : C.at_left �
 theorem TuringConfiguration.at_right_edge {C : TuringConfiguration M} : C.at_right ↔ C.index = C.tape.edge := sorry
 
 
-def TuringConfiguration.yield_base (M : TuringMachine2 Q G) (tape : Tape G) (index : ℕ) (h : index ≠ 0) (hn : index < tape.edge) (q : Q) (a : G) : TuringConfiguration M where
+def TuringConfiguration.yield_base (M : TuringMachine Q G) (tape : Tape G) (index : ℕ) (h : index ≠ 0) (hn : index < tape.edge) (q : Q) (a : G) : TuringConfiguration M where
   q := M.δ_state q a
   tape := Tape.update tape index h hn.le (M.δ_alpha q a)
-  index := if TuringMachine2.δ_direction M q a = true then index + 1 else index - 1
-  index_bounded := sorry
+  index := if TuringMachine.δ_direction M q a = true then index + 1 else index - 1
+  index_bounded := by
+    rw [Tape.unupdated_edge index h hn]
+    refine le_trans ?_ (hn : index + 1 ≤ tape.edge)
+    split
+    rfl
+    simp only [tsub_le_iff_right]
+    linarith
+
 
 -- deprecated
 -- def TuringConfiguration.yield2 (C : TuringConfiguration M) : TuringConfiguration M where
@@ -559,7 +560,7 @@ def TuringConfiguration.yield_right (C : TuringConfiguration M) (h : C.at_right)
   tape :=
     -- have atEdge := at_right_edge.mp h
     match M.δ_right_alpha C.q with
-    | some ⟨a,d⟩  => Tape.update C.tape C.index (by rw [at_right_edge.mp h]; exact (Tape.edge_pos _).ne') (at_right_edge.mp h).le a
+    | some ⟨a,_⟩  => Tape.update C.tape C.index (by rw [at_right_edge.mp h]; exact (Tape.edge_pos _).ne') (at_right_edge.mp h).le a
     | none => C.tape
   index := match M.δ_right_alpha C.q with
     | some (a, true) => C.index + 1
@@ -735,20 +736,20 @@ theorem TuringConfiguration.exclusive_rejects_accepts (C : TuringConfiguration M
 
 
 
-def TuringMachine2.use (tape : Tape G) : TuringConfiguration M where
+def TuringMachine.use (tape : Tape G) : TuringConfiguration M where
   q := M.q0
   tape := tape
   index := 0
   index_bounded := Nat.zero_le _
-def TuringMachine2.accepts (tape : Tape G) : Prop := (M.use tape).accepts
-def TuringMachine2.halt_rejects (tape : Tape G) : Prop := (M.use tape).halt_rejects
+def TuringMachine.accepts (tape : Tape G) : Prop := (M.use tape).accepts
+def TuringMachine.halt_rejects (tape : Tape G) : Prop := (M.use tape).halt_rejects
 
-def TuringMachine2.total : Prop := ∀ tape : Tape G, (M.use tape).halts
+def TuringMachine.total : Prop := ∀ tape : Tape G, (M.use tape).halts
 
 
 -- on all inputs, both turing machines have the same output.
-def TuringMachine2.same {Q1 Q2 : Type} {G : Type} [DecidableEq Q1] [DecidableEq Q2] [DecidableEq G]
-    (A : TuringMachine2 Q1 G) (B : TuringMachine2 Q2 G) := ∀ tape : Tape G, (A.use tape).accepts ↔ (B.use tape).accepts
+def TuringMachine.same {Q1 Q2 : Type} {G : Type} [DecidableEq Q1] [DecidableEq Q2] [DecidableEq G]
+    (A : TuringMachine Q1 G) (B : TuringMachine Q2 G) := ∀ tape : Tape G, (A.use tape).accepts ↔ (B.use tape).accepts
 
 
 theorem TuringConfiguration.output_theorem (C : TuringConfiguration M) (h : C.halts) : ∃ b, (rejectsImmediate b ∨ acceptsImmediate b) ∧ leads' C b := (C.halts_def.mp h)
@@ -757,15 +758,15 @@ def TuringConfiguration.output (C : TuringConfiguration M) (h : C.halts) := (C.o
 theorem TuringConfiguration.output_halts (C : TuringConfiguration M) (h : C.halts) : (C.output h).haltsImmediate := (C.output_theorem h).choose_spec.left
 theorem TuringConfiguration.output_leads (C : TuringConfiguration M) (h : C.halts) : C.leads' (C.output h) := (C.output_theorem h).choose_spec.right
 
-def TuringMachine2.output (tape : Tape G) := (M.use tape).output
+def TuringMachine.output (tape : Tape G) := (M.use tape).output
 -- #check Option
-def TuringMachine2.total_output (h_total : M.total) (tape : Tape G) := (M.use tape).output (h_total tape)
+def TuringMachine.total_output (h_total : M.total) (tape : Tape G) := (M.use tape).output (h_total tape)
 
 
 def Comp (Q1 Q2 : Type) : Type := Sum Q1 Q2
 
-def TuringMachine2.comp {Q1 Q2 : Type} {G : Type} [DecidableEq G]
-    (A : TuringMachine2 Q1 G) (B : TuringMachine2 Q2 G) : TuringMachine2 (Comp Q1 Q2) G where
+def TuringMachine.comp {Q1 Q2 : Type} {G : Type} [DecidableEq G]
+    (A : TuringMachine Q1 G) (B : TuringMachine Q2 G) : TuringMachine (Comp Q1 Q2) G where
 
   δ := by
     intro q a
@@ -786,11 +787,11 @@ def TuringMachine2.comp {Q1 Q2 : Type} {G : Type} [DecidableEq G]
 
 
 
--- def TuringMachine2.binary {n : ℕ} (repr : G → Fin n) (h: Function.Bijective repr) :=
+-- def TuringMachine.binary {n : ℕ} (repr : G → Fin n) (h: Function.Bijective repr) :=
 
 
 
--- def UniversalTuringMachine : TuringMachine2 Q G where
+-- def UniversalTuringMachine : TuringMachine Q G where
 
 
 
