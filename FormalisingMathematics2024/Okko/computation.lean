@@ -282,10 +282,29 @@ theorem leads_connected  {f : X → X} {a b c : X} (lb : leads f a b) (lc : lead
 -- untrue:
 -- def leads_connected'  {f : X → X} {a b c : X} (lb : leads f b a) (lc : leads f c a) : leads f b c ∨ leads f c b := by sorry
 
-#check Nat.find
+-- #check Nat.find
+-- if a leads to b which satisfies p, this gives the first index that satisfies p
+-- this is just leads_pred_steps but worse
 def leads_first {f : X → X} {a b : X} {p : X → Prop} [DecidablePred p] {nb : ℕ} (wb : sequence_leading f a nb = b) (pb : p b) :=
     Nat.find (p := fun w ↦ p (sequence_leading f a w)) ⟨nb,by simp only [wb,pb]⟩
 
+def leads_steps {f : X → X} [DecidableEq X] (a b : X) (l : leads f a b) : ℕ := Nat.find l
+
+def leads_pred  (f : X → X) (a : X) (p : X → Prop) : Prop := (∃n, p (sequence_leading f a n))
+
+theorem leads_pred_def {f : X → X} {a : X} {p : X → Prop} :
+    leads_pred f a p ↔ (∃n, p (sequence_leading f a n)) := by rfl
+
+theorem leads_pred_def' {f : X → X} {a : X} {p : X → Prop} :
+    leads_pred f a p ↔ (∃b, p b ∧ leads f a b) := by
+  simp only [leads_pred_def,leads_def]
+  aesop
+
+theorem leads_pred_or {f : X → X} {a : X} {p1 p2 : X → Prop} : (leads_pred f a p1 ∨ leads_pred f a p2) ↔ leads_pred f a (p1 ⊔ p2) := by
+  reduce
+  aesop
+
+def leads_pred_steps {f : X → X}  {a: X} {p : X → Prop} [DecidablePred p] (l : leads_pred f a p) : ℕ := Nat.find l
 
 
 
@@ -332,6 +351,8 @@ class AutomatonConfiguration (H : Type) where
   yield (C : H) : H
   acceptsImmediate (C : H) : Prop
   rejectsImmediate (C : H) : Prop
+  acceptsImmediate_decidable : DecidablePred acceptsImmediate
+  rejectsImmediate_decidable : DecidablePred rejectsImmediate
   rejectsImmediate_yield_rejectsImmediate (C : H) : rejectsImmediate C → rejectsImmediate (yield C)
   acceptsImmediate_yield_acceptsImmediate (C : H) : acceptsImmediate C → acceptsImmediate (yield C)
   exclusive_rejects_accepts_immediate (C : H) : rejectsImmediate C → acceptsImmediate C → False
@@ -347,10 +368,22 @@ def AutomatonConfiguration.leads' (a : H) (b : H) : Prop :=
 def AutomatonConfiguration.haltsImmediate (a : H) : Prop :=
   rejectsImmediate a ∨ acceptsImmediate a
 
+-- #check instDecidableOr
+-- @[macro_inline]
+instance AutomatonConfiguration.haltsImmediate_decidable : @DecidablePred H (haltsImmediate) := by
+  unfold haltsImmediate
+  intro a
+  exact @instDecidableOr _ _ (rejectsImmediate_decidable a) (acceptsImmediate_decidable a)
+
 
 
 def AutomatonConfiguration.halt_rejects (a : H) : Prop :=
   ∃b, rejectsImmediate b ∧ leads' a b
+
+theorem AutomatonConfiguration.halt_rejects_def (a : H) :
+    AutomatonConfiguration.halt_rejects a ↔ ∃b, rejectsImmediate b ∧ leads' a b := by rfl
+
+
 
 def AutomatonConfiguration.accepts (a : H) : Prop :=
   ∃b, acceptsImmediate b ∧ leads' a b
@@ -376,6 +409,25 @@ theorem AutomatonConfiguration.halts_def (a : H) : halts a ↔ ∃b, (haltsImmed
   --   left
   --   use b
   aesop
+
+
+def AutomatonConfiguration.leads_pred' (a : H) (p : H → Prop) : Prop :=
+    _root_.leads_pred yield a p
+theorem AutomatonConfiguration.halt_rejects_def' {a : H} :
+    halt_rejects a ↔ leads_pred' a rejectsImmediate := by
+  simp only [halt_rejects_def,leads_pred']
+  exact Iff.symm leads_pred_def'
+theorem AutomatonConfiguration.accepts_def' {a : H} :
+    accepts a ↔ leads_pred' a acceptsImmediate := by
+  simp only [accepts,leads_pred']
+  exact Iff.symm leads_pred_def'
+@[simp]
+theorem AutomatonConfiguration.halts_def' {a : H} :
+    halts a ↔ leads_pred' a haltsImmediate := by
+  simp only [halts_def,leads_pred']
+  exact Iff.symm leads_pred_def'
+
+
 
 
 theorem AutomatonConfiguration.rejectsImmediate_leads_rejectsImmediate {a b : H}
@@ -423,6 +475,14 @@ theorem AutomatonConfiguration.exclusive_rejects_accepts (a : H) :
   exact exclusive_rejects_accepts_immediate rej r_q this
   have := rejectsImmediate_leads_rejectsImmediate t2 r_q
   exact exclusive_rejects_accepts_immediate acc this a_q
+
+
+def AutomatonConfiguration.leads_nth (a : H) (n : ℕ) : H :=
+    _root_.sequence_leading yield a n
+
+def AutomatonConfiguration.haltsIn (a : H) (h : halts a) : ℕ := leads_pred_steps (halts_def'.mp h)
+
+def AutomatonConfiguration.result (a : H) (h : halts a) : H := leads_nth a (haltsIn a h)
 
 end automatonConfiguration
 
@@ -787,11 +847,45 @@ instance : AutomatonConfiguration (TuringConfiguration M) where
   yield (C) := TuringConfiguration.yield C
   acceptsImmediate (C) := TuringConfiguration.acceptsImmediate C
   rejectsImmediate (C) := TuringConfiguration.rejectsImmediate C
+  acceptsImmediate_decidable := sorry -- TODO: bring back DecidableEq Q
+  rejectsImmediate_decidable := sorry
   rejectsImmediate_yield_rejectsImmediate (C) (h) := TuringConfiguration.rejectsImmediate_yield_rejectsImmediate C h
   acceptsImmediate_yield_acceptsImmediate (C) (h) := TuringConfiguration.acceptsImmediate_yield_acceptsImmediate C h
   exclusive_rejects_accepts_immediate (_) (hr) (ha) := TuringConfiguration.exclusive_rejects_accepts_immediate ha hr
 
 end turingConfiguration
+
+
+section stateAutomaton
+
+-- automaton with an input/output tape and an internal state
+
+structure StateAutomaton (IO : Type)
+  where
+  H : Type
+  auto : AutomatonConfiguration H
+  init (t : IO) : H
+  get (a : H) : IO
+
+variable {IO : Type} (M : StateAutomaton IO) (tape : IO)
+
+def StateAutomaton.accepts : Prop := (auto M).accepts ((init M) tape)
+def StateAutomaton.halt_rejects : Prop := (auto M).halt_rejects ((init M) tape)
+
+def StateAutomaton.total : Prop := ∀ t : IO, (auto M).halts ((init M) t)
+
+-- def StateAutomaton.output : Option IO := (auto M). ((init M) tape)
+
+
+-- on all inputs, both automata have the same acceptance.
+def StateAutomaton.same_accept (A B : StateAutomaton IO) := ∀ t : IO, accepts A t ↔ accepts B t
+
+
+
+end stateAutomaton
+
+
+
 
 def TuringMachine.use (tape : Tape G) : TuringConfiguration M where
   q := M.q0
