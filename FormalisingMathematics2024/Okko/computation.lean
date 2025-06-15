@@ -293,7 +293,7 @@ end lead
 
 
 
-variable {Q G : Type} [DecidableEq Q] [DecidableEq G]
+variable {Q G : Type}  --[DecidableEq G]
 
 -- a looser ruleset
 structure TuringMachine (Q : Type) (G : Type)
@@ -793,7 +793,7 @@ def TuringMachine.total : Prop := ∀ tape : Tape G, AutomatonConfiguration.halt
 
 
 -- on all inputs, both turing machines have the same output.
-def TuringMachine.same {Q1 Q2 : Type} {G : Type} [DecidableEq Q1] [DecidableEq Q2] [DecidableEq G]
+def TuringMachine.same {Q1 Q2 : Type} {G : Type} --[DecidableEq Q1] [DecidableEq Q2] [DecidableEq G]
     (A : TuringMachine Q1 G) (B : TuringMachine Q2 G) := ∀ tape : Tape G, AutomatonConfiguration.accepts (A.use tape) ↔ AutomatonConfiguration.accepts (B.use tape)
 
 
@@ -811,24 +811,22 @@ def TuringMachine.total_output (h_total : M.total) (tape : Tape G) := (M.use tap
 
 def Comp (Q1 Q2 : Type) : Type := Sum Q1 Q2
 
+def comp_switch {Q1 Q2 : Type} {G : Type} --[DecidableEq G]
+    (A : TuringMachine Q1 G) (B : TuringMachine Q2 G) (x : Q1) : Sum Q1 Q2 := by
+  by_cases x = A.qAcc
+  · exact Sum.inr B.q0
+  by_cases x = A.qRej
+  · exact Sum.inr B.qRej
+  exact Sum.inl x
 
 -- when A accepts, its finishing state is fed into B
-def TuringMachine.comp {Q1 Q2 : Type} {G : Type} [DecidableEq G]
+def TuringMachine.comp {Q1 Q2 : Type} {G : Type} --[DecidableEq G]
     (A : TuringMachine Q1 G) (B : TuringMachine Q2 G) : TuringMachine (Comp Q1 Q2) G where
-
   δ (q a) := by
     cases q with
     | inl l =>
       have ⟨x,y⟩ := (A.δ l a)
-      exact ⟨
-      (by
-        by_cases x = A.qAcc
-        · exact Sum.inr B.q0
-        by_cases x = A.qRej
-        · exact Sum.inr B.qRej
-        exact Sum.inl x
-      ),y⟩
-
+      exact ⟨comp_switch A B x,y⟩
     | inr r =>
       have ⟨x,y⟩ := (B.δ r a)
       exact ⟨Sum.inr x,y⟩
@@ -843,11 +841,7 @@ def TuringMachine.comp {Q1 Q2 : Type} {G : Type} [DecidableEq G]
     cases q with
     | inl l =>
       have x := (A.δ_left l)
-      by_cases x = A.qAcc
-      · exact Sum.inr B.q0
-      by_cases x = A.qRej
-      · exact Sum.inr B.qRej
-      exact Sum.inl x
+      exact comp_switch A B x
     | inr r =>
       have x := (B.δ_left r)
       exact Sum.inr x
@@ -855,27 +849,45 @@ def TuringMachine.comp {Q1 Q2 : Type} {G : Type} [DecidableEq G]
     cases q with
     | inl l =>
       have x := (A.δ_right l)
-      by_cases x = A.qAcc
-      · exact Sum.inr B.q0
-      by_cases x = A.qRej
-      · exact Sum.inr B.qRej
-      exact Sum.inl x
+      exact comp_switch A B x
     | inr r =>
       have x := (B.δ_right r)
       exact Sum.inr x
-  δ_right_alpha (q) := by
-    cases q with
-    | inl l =>
-      exact (A.δ_right_alpha l)
-    | inr r =>
-      exact (B.δ_right_alpha r)
+  δ_right_alpha (q) := Sum.elim (A.δ_right_alpha) B.δ_right_alpha q
 
 
+theorem comp_total {Q1 Q2 : Type} {G : Type}
+    (A : TuringMachine Q1 G) (B : TuringMachine Q2 G) (hA : A.total) (hB : B.total) : (A.comp B).total := by sorry
 
 -- def TuringMachine.binary {n : ℕ} (repr : G → Fin n) (h: Function.Bijective repr) :=
 
 
+def TuringMachine.language (M : TuringMachine Q G) := {l | M.accepts l}
 
+def decidableLanguage (L : Set (Tape G)) : Prop := ∃(Q : Type), Finite Q ∧ ∃(m : TuringMachine Q G), m.language = L ∧ m.total
+
+theorem decidable_union (a b : Set (Tape G)) (ha : decidableLanguage a) (hb : decidableLanguage b) : decidableLanguage (a ∪ b) := by
+  sorry
+theorem decidable_complement (a : Set (Tape G)) (ha : decidableLanguage a)  : decidableLanguage aᶜ := by
+  sorry
+theorem decidable_inter (a b : Set (Tape G)) (ha : decidableLanguage a) (hb : decidableLanguage b) : decidableLanguage (a ∩ b) := by
+  sorry
+
+def semi_decidableLanguage (L : Set (Tape G)) : Prop := ∃(Q : Type), Finite Q ∧ ∃(m : TuringMachine Q G), m.language = L
+
+theorem semi_decidable_of_decidable (a : Set (Tape G)) (ha : decidableLanguage a) : semi_decidableLanguage a := by
+  unfold semi_decidableLanguage
+  unfold decidableLanguage at ha
+  tauto
+-- theorem
+theorem semi_decidable_union (a b : Set (Tape G)) (ha : semi_decidableLanguage a) (hb : semi_decidableLanguage b) : semi_decidableLanguage (a ∪ b) := by
+  sorry
+
+theorem semi_decidable_inter (a b : Set (Tape G)) (ha : semi_decidableLanguage a) (hb : semi_decidableLanguage b) : semi_decidableLanguage (a ∩ b) := by
+  sorry
+
+theorem decidable_iff_semi_decidable_self_and_complement (a : Set (Tape G)) : decidableLanguage a ↔ (semi_decidableLanguage a ∧ semi_decidableLanguage aᶜ) := by
+  sorry
 -- def UniversalTuringMachine : TuringMachine Q G where
 
 
