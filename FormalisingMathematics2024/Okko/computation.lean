@@ -487,6 +487,36 @@ def AutomatonConfiguration.result (a : H) (h : halts a) : H := leads_nth a (halt
 end automatonConfiguration
 
 
+section stateAutomaton
+
+-- automaton with an input/output tape and an internal state
+
+structure StateAutomaton (IO : Type)
+  where
+  H : Type
+  auto : AutomatonConfiguration H
+  init (t : IO) : H
+  get (a : H) : IO
+
+variable {IO : Type} (M : StateAutomaton IO) (tape : IO)
+
+def StateAutomaton.accepts : Prop := (auto M).accepts ((init M) tape)
+def StateAutomaton.halt_rejects : Prop := (auto M).halt_rejects ((init M) tape)
+
+def StateAutomaton.total : Prop := ∀ t : IO, (auto M).halts ((init M) t)
+
+-- def StateAutomaton.output : Option IO := (auto M). ((init M) tape)
+
+
+-- on all inputs, both automata have the same acceptance.
+def StateAutomaton.same_accept (A B : StateAutomaton IO) := ∀ t : IO, accepts A t ↔ accepts B t
+
+
+
+end stateAutomaton
+
+
+
 section tape
 
 structure Tape (G : Type) where
@@ -855,34 +885,6 @@ instance : AutomatonConfiguration (TuringConfiguration M) where
 
 end turingConfiguration
 
-
-section stateAutomaton
-
--- automaton with an input/output tape and an internal state
-
-structure StateAutomaton (IO : Type)
-  where
-  H : Type
-  auto : AutomatonConfiguration H
-  init (t : IO) : H
-  get (a : H) : IO
-
-variable {IO : Type} (M : StateAutomaton IO) (tape : IO)
-
-def StateAutomaton.accepts : Prop := (auto M).accepts ((init M) tape)
-def StateAutomaton.halt_rejects : Prop := (auto M).halt_rejects ((init M) tape)
-
-def StateAutomaton.total : Prop := ∀ t : IO, (auto M).halts ((init M) t)
-
--- def StateAutomaton.output : Option IO := (auto M). ((init M) tape)
-
-
--- on all inputs, both automata have the same acceptance.
-def StateAutomaton.same_accept (A B : StateAutomaton IO) := ∀ t : IO, accepts A t ↔ accepts B t
-
-
-
-end stateAutomaton
 
 
 
