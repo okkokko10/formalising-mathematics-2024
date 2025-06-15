@@ -316,8 +316,9 @@ structure TuringMachine (Q : Type) (G : Type)
 
   δ_left : Q → Q -- the case when a = leftChar
   δ_right : Q → Q -- the case when a = rightChar
-  δ_right_alpha : Q → (Option (G × Bool)) -- the case when a = rightChar
+  δ_right_alpha : Q → (Option (G × Bool)) -- the case when a = rightChar. `none` travels left automatically
   -- δ_left_rej_loop : δ_left qRej = qRej -- the case when a = leftChar
+
 
 
 
@@ -330,6 +331,25 @@ inductive LeftRightChar
 def leftChar {A : Type} := Sum.inr (α := A) LeftRightChar.leftChar
 def rightChar {A : Type} := Sum.inr (α := A) LeftRightChar.rightChar
 
+def TuringMachine.δ_complete (M : TuringMachine Q G) (q : Q) (a : Sum G LeftRightChar) : Q × (Sum G LeftRightChar) × Bool := by
+  -- by_cases C.q = M.qAcc ∨ C.q = M.qRej
+  -- · exact C
+  cases a with
+  | inl a =>
+    have x := (M.δ q a)
+    exact ⟨x.1,Sum.inl a,x.2.2⟩
+  | inr rlc =>
+    exact match rlc with
+    | LeftRightChar.leftChar =>
+      ⟨(M.δ_left q),leftChar,true⟩
+    | LeftRightChar.rightChar =>
+      ⟨(M.δ_right q),
+        match M.δ_right_alpha q with
+          | some (a, b) => ⟨Sum.inl a,b⟩
+          | none => ⟨rightChar,false⟩
+        ⟩
+
+-- def TuringMachine_mk' {Q G : Type} (δ_complete : Q → (Sum G LeftRightChar) → Q × (Sum G LeftRightChar) × Bool) (qAcc qRej q0: Q) := 0
 
 -- def TuringMachine.δ_state (M : @TuringMachine state_ alphabet_) (q : M.Q) (a : M.G) := (M.δ q a).1
 -- def TuringMachine.δ_alpha (M : @TuringMachine state_ alphabet_) (q : M.Q) (a : M.G) := (M.δ q a).2.1
@@ -791,25 +811,64 @@ def TuringMachine.total_output (h_total : M.total) (tape : Tape G) := (M.use tap
 
 def Comp (Q1 Q2 : Type) : Type := Sum Q1 Q2
 
+
+-- when A accepts, its finishing state is fed into B
 def TuringMachine.comp {Q1 Q2 : Type} {G : Type} [DecidableEq G]
     (A : TuringMachine Q1 G) (B : TuringMachine Q2 G) : TuringMachine (Comp Q1 Q2) G where
 
-  δ := by
-    intro q a
-    cases' q with l r
-    · have x := (A.δ l a)
-      exact ⟨Sum.inl x.1,x.2⟩
-    · have x := (B.δ r a)
-      exact ⟨Sum.inr x.1,x.2⟩
-  qAcc := sorry
-  qRej := sorry
-  q0 := sorry
-  acc_neq_rej := sorry
-  -- rej_loop (a) := sorry
-  -- acc_loop (a) := sorry
-  δ_left := sorry
-  δ_right := sorry
-  δ_right_alpha := sorry
+  δ (q a) := by
+    cases q with
+    | inl l =>
+      have ⟨x,y⟩ := (A.δ l a)
+      exact ⟨
+      (by
+        by_cases x = A.qAcc
+        · exact Sum.inr B.q0
+        by_cases x = A.qRej
+        · exact Sum.inr B.qRej
+        exact Sum.inl x
+      ),y⟩
+
+    | inr r =>
+      have ⟨x,y⟩ := (B.δ r a)
+      exact ⟨Sum.inr x,y⟩
+  qAcc := Sum.inr B.qAcc
+  qRej := Sum.inr B.qRej
+  q0 := Sum.inl A.q0
+  acc_neq_rej := by
+    intro w
+    apply B.acc_neq_rej
+    exact Sum.inr_injective w
+  δ_left (q) := by
+    cases q with
+    | inl l =>
+      have x := (A.δ_left l)
+      by_cases x = A.qAcc
+      · exact Sum.inr B.q0
+      by_cases x = A.qRej
+      · exact Sum.inr B.qRej
+      exact Sum.inl x
+    | inr r =>
+      have x := (B.δ_left r)
+      exact Sum.inr x
+  δ_right (q) := by -- this could be generalized with δ_left and δ
+    cases q with
+    | inl l =>
+      have x := (A.δ_right l)
+      by_cases x = A.qAcc
+      · exact Sum.inr B.q0
+      by_cases x = A.qRej
+      · exact Sum.inr B.qRej
+      exact Sum.inl x
+    | inr r =>
+      have x := (B.δ_right r)
+      exact Sum.inr x
+  δ_right_alpha (q) := by
+    cases q with
+    | inl l =>
+      exact (A.δ_right_alpha l)
+    | inr r =>
+      exact (B.δ_right_alpha r)
 
 
 
