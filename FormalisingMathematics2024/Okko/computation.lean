@@ -295,33 +295,6 @@ end lead
 
 variable {Q G : Type}  --[DecidableEq G]
 
--- a looser ruleset
-structure TuringMachine (Q : Type) (G : Type)
-  where
-  -- δ : Q → G → Q × G × Bool
-  -- Q := state_ -- states
-  -- G := alphabet_ -- tape alphabet plus leftChar and rightChar
-  -- Gz: Zero G := by infer_instance
-  δ : Q → G → Q × G × Bool -- transition
-  -- δ : state_ → alphabet_ → state_ × alphabet_ × Bool -- transition
-  qAcc : Q -- accept state
-  qRej : Q -- reject state
-  q0 : Q -- start state
-  acc_neq_rej : qAcc ≠ qRej
-  δ_state (q : Q) (a : G) := (δ q a).1
-  δ_alpha (q : Q) (a : G) := (δ q a).2.1
-  δ_direction (q : Q) (a : G) := (δ q a).2.2
-  -- rej_loop (a) : δ_state qRej a = qRej
-  -- acc_loop (a) : δ_state qAcc a = qAcc
-
-  δ_left : Q → Q -- the case when a = leftChar
-  δ_right : Q → Q -- the case when a = rightChar
-  δ_right_alpha : Q → (Option (G × Bool)) -- the case when a = rightChar. `none` travels left automatically
-  -- δ_left_rej_loop : δ_left qRej = qRej -- the case when a = leftChar
-
-
-
-
 -- maybe have both in singleton types
 inductive LeftRightChar
 | leftChar
@@ -330,26 +303,6 @@ inductive LeftRightChar
 
 def leftChar {A : Type} := Sum.inr (α := A) LeftRightChar.leftChar
 def rightChar {A : Type} := Sum.inr (α := A) LeftRightChar.rightChar
-
-def TuringMachine.δ_complete (M : TuringMachine Q G) (q : Q) (a : Sum G LeftRightChar) : Q × (Sum G LeftRightChar) × Bool := by
-  -- by_cases C.q = M.qAcc ∨ C.q = M.qRej
-  -- · exact C
-  cases a with
-  | inl a =>
-    have x := (M.δ q a)
-    exact ⟨x.1,Sum.inl a,x.2.2⟩
-  | inr rlc =>
-    exact match rlc with
-    | LeftRightChar.leftChar =>
-      ⟨(M.δ_left q),leftChar,true⟩
-    | LeftRightChar.rightChar =>
-      ⟨(M.δ_right q),
-        match M.δ_right_alpha q with
-          | some (a, b) => ⟨Sum.inl a,b⟩
-          | none => ⟨rightChar,false⟩
-        ⟩
-
--- def TuringMachine_mk' {Q G : Type} (δ_complete : Q → (Sum G LeftRightChar) → Q × (Sum G LeftRightChar) × Bool) (qAcc qRej q0: Q) := 0
 
 -- def TuringMachine.δ_state (M : @TuringMachine state_ alphabet_) (q : M.Q) (a : M.G) := (M.δ q a).1
 -- def TuringMachine.δ_alpha (M : @TuringMachine state_ alphabet_) (q : M.Q) (a : M.G) := (M.δ q a).2.1
@@ -362,6 +315,120 @@ def TuringMachine.δ_complete (M : TuringMachine Q G) (q : Q) (a : Sum G LeftRig
 
 -- TODO: Actually the tape rightChar has a purpose in telling the automaton that the finite input has ended.
 
+-- @[ext]
+theorem nat_le_ext {a b : ℕ} : (∀i : ℕ, a ≤ i ↔ b ≤ i) → a = b := by
+  intro h
+  have t1:= h a
+  have t2:= h b
+  simp only [le_refl, iff_true, true_iff] at t2 t1
+  exact Nat.le_antisymm t2 t1
+
+
+
+
+section automatonConfiguration
+
+class AutomatonConfiguration (H : Type) where
+  yield (C : H) : H
+  acceptsImmediate (C : H) : Prop
+  rejectsImmediate (C : H) : Prop
+  rejectsImmediate_yield_rejectsImmediate (C : H) : rejectsImmediate C → rejectsImmediate (yield C)
+  acceptsImmediate_yield_acceptsImmediate (C : H) : acceptsImmediate C → acceptsImmediate (yield C)
+  exclusive_rejects_accepts_immediate (C : H) : rejectsImmediate C → acceptsImmediate C → False
+
+
+variable {H} [AutomatonConfiguration H]
+
+
+def AutomatonConfiguration.leads' (a : H) (b : H) : Prop :=
+    _root_.leads yield a b
+
+
+def AutomatonConfiguration.haltsImmediate (a : H) : Prop :=
+  rejectsImmediate a ∨ acceptsImmediate a
+
+
+
+def AutomatonConfiguration.halt_rejects (a : H) : Prop :=
+  ∃b, rejectsImmediate b ∧ leads' a b
+
+def AutomatonConfiguration.accepts (a : H) : Prop :=
+  ∃b, acceptsImmediate b ∧ leads' a b
+
+def AutomatonConfiguration.halts (a : H) : Prop :=
+  accepts a ∨ halt_rejects a
+
+theorem AutomatonConfiguration.halts_def (a : H) : halts a ↔ ∃b, (haltsImmediate b) ∧ leads' a b := by
+  unfold haltsImmediate halts accepts halt_rejects
+  -- constructor
+  -- · intro l
+  --   cases' l with l l
+  --   obtain ⟨b,w,lea⟩ := l
+  --   use b
+  --   tauto
+  --   obtain ⟨b,w,lea⟩ := l
+  --   use b
+  --   tauto
+  -- · intro ⟨b,imm,lea⟩
+  --   cases' imm with _ _
+  --   right
+  --   use b
+  --   left
+  --   use b
+  aesop
+
+
+theorem AutomatonConfiguration.rejectsImmediate_leads_rejectsImmediate {a b : H}
+    (hl : leads' a b) (h : rejectsImmediate a) : rejectsImmediate b := by
+  exact leads_preserves rejectsImmediate_yield_rejectsImmediate hl h
+
+
+theorem AutomatonConfiguration.acceptsImmediate_leads_acceptsImmediate {a b : H}
+    (hl : leads' a b) (h : acceptsImmediate a) : acceptsImmediate b := by
+  refine leads_preserves acceptsImmediate_yield_acceptsImmediate hl h
+
+
+-- if C rejects, so does its predecessor and successor
+theorem AutomatonConfiguration.rejects_stable (a : H): halt_rejects a ↔ halt_rejects (yield a) := by
+
+
+  unfold halt_rejects leads'
+  by_cases h : rejectsImmediate a
+  constructor
+  intro _
+  use (yield a)
+  constructor
+  exact rejectsImmediate_yield_rejectsImmediate a h
+  exact leads_self yield (yield a)
+  sorry
+  unfold leads
+  simp_rw [←sequence_leading_succ']
+  -- simp only [sequence_leading_succ]
+  refine ⟨fun ⟨b,r_b,n,se⟩ ↦ ⟨b,r_b,n - 1,?_⟩,fun rig ↦ ?_⟩
+
+
+
+  sorry
+  sorry
+
+
+theorem AutomatonConfiguration.exclusive_rejects_accepts (a : H) :
+    halt_rejects a → accepts a → False := by
+  unfold halt_rejects accepts leads'
+  intro ⟨rej,r_q,leads_r⟩
+  intro ⟨acc,a_q,leads_a⟩
+  have t0 := leads_connected leads_a leads_r
+  cases' t0 with t1 t2
+  have := acceptsImmediate_leads_acceptsImmediate t1 a_q
+  exact exclusive_rejects_accepts_immediate rej r_q this
+  have := rejectsImmediate_leads_rejectsImmediate t2 r_q
+  exact exclusive_rejects_accepts_immediate acc this a_q
+
+end automatonConfiguration
+
+
+section tape
+
 structure Tape (G : Type) where
   toFun : ℕ → Sum G LeftRightChar
   start : toFun 0 = leftChar
@@ -370,15 +437,6 @@ structure Tape (G : Type) where
 
 instance {G : Type} : CoeFun (Tape G) (fun _ ↦ ℕ → Sum G LeftRightChar) where
   coe w := w.toFun
-
-
--- @[ext]
-theorem nat_le_ext {a b : ℕ} : (∀i : ℕ, a ≤ i ↔ b ≤ i) → a = b := by
-  intro h
-  have t1:= h a
-  have t2:= h b
-  simp only [le_refl, iff_true, true_iff] at t2 t1
-  exact Nat.le_antisymm t2 t1
 
 
 
@@ -506,8 +564,61 @@ theorem Tape.updated_edge {t : Tape G} {a : G} : (t.update t.edge (t.edge_pos.ne
 --     simp only [h.ne, ite_false]
 --     exact t.start
 
+end tape
 
 
+-- a looser ruleset
+structure TuringMachine (Q : Type) (G : Type)
+  where
+  -- δ : Q → G → Q × G × Bool
+  -- Q := state_ -- states
+  -- G := alphabet_ -- tape alphabet plus leftChar and rightChar
+  -- Gz: Zero G := by infer_instance
+  δ : Q → G → Q × G × Bool -- transition
+  -- δ : state_ → alphabet_ → state_ × alphabet_ × Bool -- transition
+  qAcc : Q -- accept state
+  qRej : Q -- reject state
+  q0 : Q -- start state
+  acc_neq_rej : qAcc ≠ qRej
+  δ_state (q : Q) (a : G) := (δ q a).1
+  δ_alpha (q : Q) (a : G) := (δ q a).2.1
+  δ_direction (q : Q) (a : G) := (δ q a).2.2
+  -- rej_loop (a) : δ_state qRej a = qRej
+  -- acc_loop (a) : δ_state qAcc a = qAcc
+
+  δ_left : Q → Q -- the case when a = leftChar
+  δ_right : Q → Q -- the case when a = rightChar
+  δ_right_alpha : Q → (Option (G × Bool)) -- the case when a = rightChar. `none` travels left automatically
+  -- δ_left_rej_loop : δ_left qRej = qRej -- the case when a = leftChar
+
+
+
+
+def TuringMachine.δ_complete (M : TuringMachine Q G) (q : Q) (a : Sum G LeftRightChar) : Q × (Sum G LeftRightChar) × Bool := by
+  -- by_cases C.q = M.qAcc ∨ C.q = M.qRej
+  -- · exact C
+  cases a with
+  | inl a =>
+    have x := (M.δ q a)
+    exact ⟨x.1,Sum.inl a,x.2.2⟩
+  | inr rlc =>
+    exact match rlc with
+    | LeftRightChar.leftChar =>
+      ⟨(M.δ_left q),leftChar,true⟩
+    | LeftRightChar.rightChar =>
+      ⟨(M.δ_right q),
+        match M.δ_right_alpha q with
+          | some (a, b) => ⟨Sum.inl a,b⟩
+          | none => ⟨rightChar,false⟩
+        ⟩
+
+-- def TuringMachine_mk' {Q G : Type} (δ_complete : Q → (Sum G LeftRightChar) → Q × (Sum G LeftRightChar) × Bool) (qAcc qRej q0: Q) := 0
+
+
+
+variable {M : TuringMachine Q G}
+
+section turingConfiguration
 
 structure TuringConfiguration (M : TuringMachine Q G) where
   q : Q
@@ -520,7 +631,6 @@ structure TuringConfiguration (M : TuringMachine Q G) where
   -- v : List M.G
   index_bounded : index ≤ tape.edge
 
-variable {M : TuringMachine Q G}
 
 def TuringConfiguration.a (C : TuringConfiguration M)  : Sum G LeftRightChar := C.tape C.index
 
@@ -643,16 +753,6 @@ def TuringConfiguration.yield (C : TuringConfiguration M) : TuringConfiguration 
     | LeftRightChar.rightChar => exact C.yield_right h
 
 
-
-class AutomatonConfiguration (H : Type) where
-  yield (C : H) : H
-  acceptsImmediate (C : H) : Prop
-  rejectsImmediate (C : H) : Prop
-  rejectsImmediate_yield_rejectsImmediate (C : H) : rejectsImmediate C → rejectsImmediate (yield C)
-  acceptsImmediate_yield_acceptsImmediate (C : H) : acceptsImmediate C → acceptsImmediate (yield C)
-  exclusive_rejects_accepts_immediate (C : H) : rejectsImmediate C → acceptsImmediate C → False
-
-
 def TuringConfiguration.acceptsImmediate (a : TuringConfiguration M) : Prop :=
   a.q = M.qAcc
 
@@ -691,95 +791,7 @@ instance : AutomatonConfiguration (TuringConfiguration M) where
   acceptsImmediate_yield_acceptsImmediate (C) (h) := TuringConfiguration.acceptsImmediate_yield_acceptsImmediate C h
   exclusive_rejects_accepts_immediate (_) (hr) (ha) := TuringConfiguration.exclusive_rejects_accepts_immediate ha hr
 
-
-variable {H} [AutomatonConfiguration H]
-
-
-def AutomatonConfiguration.leads' (a : H) (b : H) : Prop :=
-    _root_.leads yield a b
-
-
-def AutomatonConfiguration.haltsImmediate (a : H) : Prop :=
-  rejectsImmediate a ∨ acceptsImmediate a
-
-
-
-def AutomatonConfiguration.halt_rejects (a : H) : Prop :=
-  ∃b, rejectsImmediate b ∧ leads' a b
-
-def AutomatonConfiguration.accepts (a : H) : Prop :=
-  ∃b, acceptsImmediate b ∧ leads' a b
-
-def AutomatonConfiguration.halts (a : H) : Prop :=
-  accepts a ∨ halt_rejects a
-
-theorem AutomatonConfiguration.halts_def (a : H) : halts a ↔ ∃b, (haltsImmediate b) ∧ leads' a b := by
-  unfold haltsImmediate halts accepts halt_rejects
-  -- constructor
-  -- · intro l
-  --   cases' l with l l
-  --   obtain ⟨b,w,lea⟩ := l
-  --   use b
-  --   tauto
-  --   obtain ⟨b,w,lea⟩ := l
-  --   use b
-  --   tauto
-  -- · intro ⟨b,imm,lea⟩
-  --   cases' imm with _ _
-  --   right
-  --   use b
-  --   left
-  --   use b
-  aesop
-
-
-theorem AutomatonConfiguration.rejectsImmediate_leads_rejectsImmediate {a b : H}
-    (hl : leads' a b) (h : rejectsImmediate a) : rejectsImmediate b := by
-  exact leads_preserves rejectsImmediate_yield_rejectsImmediate hl h
-
-
-theorem AutomatonConfiguration.acceptsImmediate_leads_acceptsImmediate {a b : H}
-    (hl : leads' a b) (h : acceptsImmediate a) : acceptsImmediate b := by
-  refine leads_preserves acceptsImmediate_yield_acceptsImmediate hl h
-
-
--- if C rejects, so does its predecessor and successor
-theorem AutomatonConfiguration.rejects_stable (a : H): halt_rejects a ↔ halt_rejects (yield a) := by
-
-
-  unfold halt_rejects leads'
-  by_cases h : rejectsImmediate a
-  constructor
-  intro _
-  use (yield a)
-  constructor
-  exact rejectsImmediate_yield_rejectsImmediate a h
-  exact leads_self yield (yield a)
-  sorry
-  unfold leads
-  simp_rw [←sequence_leading_succ']
-  -- simp only [sequence_leading_succ]
-  refine ⟨fun ⟨b,r_b,n,se⟩ ↦ ⟨b,r_b,n - 1,?_⟩,fun rig ↦ ?_⟩
-
-
-
-  sorry
-  sorry
-
-
-theorem AutomatonConfiguration.exclusive_rejects_accepts (a : H) :
-    halt_rejects a → accepts a → False := by
-  unfold halt_rejects accepts leads'
-  intro ⟨rej,r_q,leads_r⟩
-  intro ⟨acc,a_q,leads_a⟩
-  have t0 := leads_connected leads_a leads_r
-  cases' t0 with t1 t2
-  have := acceptsImmediate_leads_acceptsImmediate t1 a_q
-  exact exclusive_rejects_accepts_immediate rej r_q this
-  have := rejectsImmediate_leads_rejectsImmediate t2 r_q
-  exact exclusive_rejects_accepts_immediate acc this a_q
-
-
+end turingConfiguration
 
 def TuringMachine.use (tape : Tape G) : TuringConfiguration M where
   q := M.q0
@@ -861,6 +873,7 @@ theorem comp_total {Q1 Q2 : Type} {G : Type}
 
 -- def TuringMachine.binary {n : ℕ} (repr : G → Fin n) (h: Function.Bijective repr) :=
 
+section decidability
 
 def TuringMachine.language (M : TuringMachine Q G) := {l | M.accepts l}
 
@@ -890,7 +903,7 @@ theorem decidable_iff_semi_decidable_self_and_complement (a : Set (Tape G)) : de
   sorry
 -- def UniversalTuringMachine : TuringMachine Q G where
 
-
+end decidability
 
 
 end ComputationOkko
