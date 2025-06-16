@@ -347,6 +347,8 @@ theorem nat_le_ext {a b : ℕ} : (∀i : ℕ, a ≤ i ↔ b ≤ i) → a = b := 
 
 section automatonConfiguration
 
+-- Todo: should I hardcode exclusive_rejects_accepts_immediate?
+
 class AutomatonConfiguration (H : Type) where
   yield' (C : H) : H
   acceptsImmediate (C : H) : Prop
@@ -355,6 +357,14 @@ class AutomatonConfiguration (H : Type) where
   rejectsImmediate_decidable : DecidablePred rejectsImmediate
   exclusive_rejects_accepts_immediate (C : H) : rejectsImmediate C → acceptsImmediate C → False
 
+-- template
+example {H : Type} : AutomatonConfiguration H where
+  yield' a := sorry
+  acceptsImmediate a := sorry
+  rejectsImmediate a := sorry
+  acceptsImmediate_decidable := sorry
+  rejectsImmediate_decidable := sorry
+  exclusive_rejects_accepts_immediate a := sorry
 
 variable {H} [AutomatonConfiguration H]
 
@@ -368,6 +378,9 @@ instance AutomatonConfiguration.haltsImmediate_decidable : @DecidablePred H (hal
   intro a
   exact @instDecidableOr _ _ (rejectsImmediate_decidable a) (acceptsImmediate_decidable a)
 
+instance AutomatonConfiguration.acceptsImmediate_decidable' : @DecidablePred H acceptsImmediate := acceptsImmediate_decidable
+
+instance AutomatonConfiguration.rejectsImmediate_decidable' : @DecidablePred H rejectsImmediate := rejectsImmediate_decidable
 
 def AutomatonConfiguration.yield (a : H) : H := if haltsImmediate a then a else yield' a
 
@@ -522,7 +535,6 @@ def StateAutomaton.total : Prop := ∀ t : I, (auto M).halts ((init M) t)
 def StateAutomaton.result (h : accepts M tape) : O := get M ((auto M).result ((init M) tape) h)
 
 
-
 -- on all inputs, both automata have the same acceptance.
 def StateAutomaton.same_accept {O' : Type} (A : StateAutomaton I O) (B : StateAutomaton I O') : Prop := ∀ t : I, accepts A t ↔ accepts B t
 
@@ -534,13 +546,48 @@ def StateAutomaton.same_result (A B : StateAutomaton I O): Prop := ∃(h : same_
 
 def StateAutomaton.conversion : O := get M <| init M tape
 
+def StateAutomaton.comp_auto  {X : Type} (A : StateAutomaton I X) (B : StateAutomaton X O) :
+    AutomatonConfiguration (A.H ⊕ B.H) where
+  yield' a := Sum.elim (
+    fun a ↦if (auto A).acceptsImmediate a then .inr (init B (get A a)) else .inl ((auto A).yield a)
+    ) (fun b ↦ .inr ((auto B).yield b)) a
+  acceptsImmediate := Sum.elim (fun _ ↦ false) ((auto B).acceptsImmediate)
+  rejectsImmediate := Sum.elim ((auto A).rejectsImmediate) ((auto B).rejectsImmediate)
+  acceptsImmediate_decidable := by
+    intro a
+    cases a with
+    | inl a =>
+      simp only [Sum.elim_inl]
+      exact decidableFalse
+    | inr b =>
+      simp only [Sum.elim_inr]
+      exact (auto B).acceptsImmediate_decidable' b
+  rejectsImmediate_decidable := by
+    intro a
+    cases h : a with
+    | inl a =>
+      simp only [Sum.elim_inl]
+      exact (auto A).rejectsImmediate_decidable' a
+    | inr b =>
+      simp only [Sum.elim_inr]
+      exact (auto B).rejectsImmediate_decidable' b
+
+  exclusive_rejects_accepts_immediate := by
+    simp only [imp_false, Sum.forall, Sum.elim_inl, not_false_eq_true, implies_true, Sum.elim_inr,
+      true_and]
+    exact (auto B).exclusive_rejects_accepts_immediate
+
+
+
 def StateAutomaton.comp {X : Type} (A : StateAutomaton I X) (B : StateAutomaton X O) : StateAutomaton I O where
   H := A.H ⊕ B.H
-  auto : AutomatonConfiguration (A.H ⊕ B.H) :=
-    sorry
-
+  auto := comp_auto A B
   init (t) := .inl (A.init t)
   get (a) := Sum.elim (conversion B <| get A ·) (get B ·) a -- if get is called on a state before A halts, `get A` is fed into `conversion B`
+
+def StateAutomaton.models_function_accept (f : I → Prop) : Prop := ∀t : I, accepts M t ↔ (f t)
+def StateAutomaton.models_function (f : I → Option O) : Prop :=
+    (models_function_accept M (f · |>.isSome)) ∧  ∀t : I, ∀(c : accepts M t), match (f t) with | some w => result M t c = w | none => False
 
 
 end stateAutomaton
