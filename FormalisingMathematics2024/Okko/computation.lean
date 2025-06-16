@@ -549,47 +549,6 @@ theorem StateAutomaton.same_result_def (A B : StateAutomaton I O) : same_result 
 
 
 
-def StateAutomaton.conversion : O := get M <| init M tape
-
-def StateAutomaton.comp_auto  {X : Type} (A : StateAutomaton I X) (B : StateAutomaton X O) :
-    AutomatonConfiguration (A.H ⊕ B.H) where
-  yield' a := Sum.elim (
-    fun a ↦if (auto A).acceptsImmediate a then .inr (init B (get A a)) else .inl ((auto A).yield a)
-    ) (fun b ↦ .inr ((auto B).yield b)) a
-  acceptsImmediate := Sum.elim (fun _ ↦ false) ((auto B).acceptsImmediate)
-  rejectsImmediate := Sum.elim ((auto A).rejectsImmediate) ((auto B).rejectsImmediate)
-  acceptsImmediate_decidable := by
-    intro a
-    cases a with
-    | inl a =>
-      simp only [Sum.elim_inl]
-      exact decidableFalse
-    | inr b =>
-      simp only [Sum.elim_inr]
-      exact (auto B).acceptsImmediate_decidable' b
-  rejectsImmediate_decidable := by
-    intro a
-    cases h : a with
-    | inl a =>
-      simp only [Sum.elim_inl]
-      exact (auto A).rejectsImmediate_decidable' a
-    | inr b =>
-      simp only [Sum.elim_inr]
-      exact (auto B).rejectsImmediate_decidable' b
-
-  exclusive_rejects_accepts_immediate := by
-    simp only [imp_false, Sum.forall, Sum.elim_inl, not_false_eq_true, implies_true, Sum.elim_inr,
-      true_and]
-    exact (auto B).exclusive_rejects_accepts_immediate
-
-
-
-def StateAutomaton.comp {X : Type} (A : StateAutomaton I X) (B : StateAutomaton X O) : StateAutomaton I O where
-  H := A.H ⊕ B.H
-  auto := comp_auto A B
-  init (t) := .inl (A.init t)
-  get (a) := Sum.elim (conversion B <| get A ·) (get B ·) a -- if get is called on a state before A halts, `get A` is fed into `conversion B`
-
 def StateAutomaton.models_function_accept (f : I → Prop) : Prop := ∀t : I, accepts M t ↔ (f t)
 def StateAutomaton.models_function (f : I → Option O) : Prop :=
     (models_function_accept M (f · |>.isSome)) ∧  ∀t : I, ∀(c : accepts M t), match (f t) with | some w => result M t c = w | none => False
@@ -636,6 +595,56 @@ def StateAutomaton.same_result_equiv : @Equivalence (StateAutomaton I O) same_re
     exact yz_eq t yc zc
 
 -- todo: a relation for models_function
+
+
+
+def StateAutomaton.conversion : O := get M <| init M tape
+
+section utilities
+
+def StateAutomaton.comp_auto  {X : Type} (A : StateAutomaton I X) (B : StateAutomaton X O) :
+    AutomatonConfiguration (A.H ⊕ B.H) where
+  yield' a := Sum.elim (
+    fun a ↦if (auto A).acceptsImmediate a then .inr (init B (get A a)) else .inl ((auto A).yield a)
+    ) (fun b ↦ .inr ((auto B).yield b)) a
+  acceptsImmediate := Sum.elim (fun _ ↦ false) ((auto B).acceptsImmediate)
+  rejectsImmediate := Sum.elim ((auto A).rejectsImmediate) ((auto B).rejectsImmediate)
+  acceptsImmediate_decidable := by
+    intro a
+    cases a with
+    | inl a =>
+      simp only [Sum.elim_inl]
+      exact decidableFalse
+    | inr b =>
+      simp only [Sum.elim_inr]
+      exact (auto B).acceptsImmediate_decidable' b
+  rejectsImmediate_decidable := by
+    intro a
+    cases h : a with
+    | inl a =>
+      simp only [Sum.elim_inl]
+      exact (auto A).rejectsImmediate_decidable' a
+    | inr b =>
+      simp only [Sum.elim_inr]
+      exact (auto B).rejectsImmediate_decidable' b
+
+  exclusive_rejects_accepts_immediate := by
+    simp only [imp_false, Sum.forall, Sum.elim_inl, not_false_eq_true, implies_true, Sum.elim_inr,
+      true_and]
+    exact (auto B).exclusive_rejects_accepts_immediate
+
+
+
+def StateAutomaton.comp {X : Type} (A : StateAutomaton I X) (B : StateAutomaton X O) : StateAutomaton I O where
+  H := A.H ⊕ B.H
+  auto := comp_auto A B
+  init (t) := .inl (A.init t)
+  get (a) := Sum.elim (conversion B <| get A ·) (get B ·) a -- if get is called on a state before A halts, `get A` is fed into `conversion B`
+
+
+
+
+end utilities
 
 
 end stateAutomaton
