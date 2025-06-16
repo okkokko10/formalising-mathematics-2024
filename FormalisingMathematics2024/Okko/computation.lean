@@ -1,7 +1,7 @@
 import Mathlib.tactic
 
 
-noncomputable section ComputationOkko
+section ComputationOkko
 
 
 section lead
@@ -619,11 +619,18 @@ theorem Tape.trail_specific (t : Tape G) : ∃!n, (∀ i, n ≤ i ↔ t i = righ
   have tt(i) : y ≤ i ↔ n ≤ i := by rw [y_spec i,n_spec i]
   exact nat_le_ext tt
 
-def Tape.edge (t : Tape G) := t.trail_specific.choose
+noncomputable def Tape.edge (t : Tape G) := t.trail_specific.choose
 
 theorem Tape.edge_spec (t : Tape G) : ∀i, t.edge ≤ i ↔ t i = rightChar := t.trail_specific.choose_spec.1
 
-theorem Tape.edge_pos (t : Tape G) : 0 < t.edge := by sorry -- if it was 0, t.start would be contradicted.
+theorem Tape.edge_pos (t : Tape G) : 0 < t.edge := by
+  -- if it was 0, t.start would be contradicted.
+  refine Nat.pos_of_ne_zero ?_
+  intro w
+  have := t.edge_spec 0 |>.mp w.le
+  rw [t.start] at this
+  unfold leftChar rightChar at this
+  simp [Sum.inr.injEq] at this
 
 
 def tapeAlpha (a : G) := Sum.inl (β := LeftRightChar) a
@@ -894,8 +901,6 @@ def TuringConfiguration.yield_right (C : TuringConfiguration M) (h : C.at_right)
 --     (by rfl)
 
 def TuringConfiguration.yield (C : TuringConfiguration M) : TuringConfiguration M := by
-  by_cases C.q = M.qAcc ∨ C.q = M.qRej
-  · exact C
   cases h : C.a with
   | inl a =>
     exact TuringConfiguration.yield_base M C.tape C.index
@@ -928,19 +933,19 @@ def TuringConfiguration.rejectsImmediate (a : TuringConfiguration M) : Prop :=
 
 
 
-theorem TuringConfiguration.rejectsImmediate_yield_rejectsImmediate (a : TuringConfiguration M)
-    (h : a.rejectsImmediate) : a.yield.rejectsImmediate := by
-  unfold rejectsImmediate yield
-  rw [h]
-  simp only [or_true, dite_eq_ite, ite_true]
-  rw [h]
+-- theorem TuringConfiguration.rejectsImmediate_yield_rejectsImmediate (a : TuringConfiguration M)
+--     (h : a.rejectsImmediate) : a.yield.rejectsImmediate := by
+--   unfold rejectsImmediate yield
+--   rw [h]
+--   simp only [or_true, dite_eq_ite, ite_true]
+--   rw [h]
 
-theorem TuringConfiguration.acceptsImmediate_yield_acceptsImmediate (a : TuringConfiguration M)
-    (h : a.acceptsImmediate) : a.yield.acceptsImmediate := by
-  unfold acceptsImmediate yield
-  rw [h]
-  simp only [true_or, dite_eq_ite, ite_true]
-  rw [h]
+-- theorem TuringConfiguration.acceptsImmediate_yield_acceptsImmediate (a : TuringConfiguration M)
+--     (h : a.acceptsImmediate) : a.yield.acceptsImmediate := by
+--   unfold acceptsImmediate yield
+--   rw [h]
+--   simp only [true_or, dite_eq_ite, ite_true]
+--   rw [h]
 
 theorem TuringConfiguration.exclusive_rejects_accepts_immediate {a : TuringConfiguration M} :
     a.acceptsImmediate → a.rejectsImmediate → False := by
@@ -985,18 +990,18 @@ def TuringMachine.same {Q1 Q2 : Type} {G : Type} --[DecidableEq Q1] [DecidableEq
 theorem TuringConfiguration.output_theorem (C : TuringConfiguration M) (h : AutomatonConfiguration.halts C) : ∃ b,
   (AutomatonConfiguration.rejectsImmediate b ∨ AutomatonConfiguration.acceptsImmediate b) ∧ AutomatonConfiguration.leads' C b := ((AutomatonConfiguration.halts_def C).mp h)
 
-def TuringConfiguration.output (C : TuringConfiguration M) (h : AutomatonConfiguration.halts C) := (C.output_theorem h).choose
+noncomputable def TuringConfiguration.output (C : TuringConfiguration M) (h : AutomatonConfiguration.halts C) := (C.output_theorem h).choose
 theorem TuringConfiguration.output_halts (C : TuringConfiguration M) (h : AutomatonConfiguration.halts C) :AutomatonConfiguration.haltsImmediate (C.output h) := (C.output_theorem h).choose_spec.left
 theorem TuringConfiguration.output_leads (C : TuringConfiguration M) (h : AutomatonConfiguration.halts C) : AutomatonConfiguration.leads' C (C.output h) := (C.output_theorem h).choose_spec.right
 
-def TuringMachine.output (tape : Tape G) := (M.use tape).output
+noncomputable def TuringMachine.output (tape : Tape G) := (M.use tape).output
 -- #check Option
-def TuringMachine.total_output (h_total : M.total) (tape : Tape G) := (M.use tape).output (h_total tape)
+noncomputable def TuringMachine.total_output (h_total : M.total) (tape : Tape G) := (M.use tape).output (h_total tape)
 
 
 def Comp (Q1 Q2 : Type) : Type := Sum Q1 Q2
 
-def comp_switch {Q1 Q2 : Type} {G : Type} --[DecidableEq G]
+noncomputable def comp_switch {Q1 Q2 : Type} {G : Type} --[DecidableEq G]
     (A : TuringMachine Q1 G) (B : TuringMachine Q2 G) (x : Q1) : Sum Q1 Q2 := by
   by_cases x = A.qAcc
   · exact Sum.inr B.q0
@@ -1005,7 +1010,7 @@ def comp_switch {Q1 Q2 : Type} {G : Type} --[DecidableEq G]
   exact Sum.inl x
 
 -- when A accepts, its finishing state is fed into B
-def TuringMachine.comp {Q1 Q2 : Type} {G : Type} --[DecidableEq G]
+noncomputable def TuringMachine.comp {Q1 Q2 : Type} {G : Type} --[DecidableEq G]
     (A : TuringMachine Q1 G) (B : TuringMachine Q2 G) : TuringMachine (Comp Q1 Q2) G where
   δ (q a) := by
     cases q with
