@@ -710,6 +710,18 @@ theorem StateAutomaton.comp_auto_e {X : Type} (A : StateAutomaton I X) (B : Stat
   rfl
   simp_all only [le_refl]
 
+
+theorem StateAutomaton.comp_auto_ew {X : Type} (A : StateAutomaton I X) (B : StateAutomaton X O) (a : A.H) (h)
+    (n' : ℕ) (nv : n' > ((auto A).haltsIn a ((auto A).halts_of_accepts h))) :
+    (comp_auto A B).leads_nth (.inl a) ((auto A).haltsIn a ((auto A).halts_of_accepts h) + n')
+    = .inr ((auto B).leads_nth (init B <| get A <| (auto A).result a h) n') := by
+  -- possibly off by one.
+
+
+
+  sorry
+
+
 -- todo: attempt some rule where an automaton simulating another contains steps corresponding to steps in the simulated automaton, and each simulated step finishes in finite time.
 
 def StateAutomaton.comp {X : Type} (A : StateAutomaton I X) (B : StateAutomaton X O) : StateAutomaton I O where
@@ -721,6 +733,8 @@ def StateAutomaton.comp {X : Type} (A : StateAutomaton I X) (B : StateAutomaton 
 -- theorem StateAutomaton.comp.get_ready {X : Type} (A : StateAutomaton I X) (B : StateAutomaton X O) :
 
 
+theorem StateAutomaton.comp.accepts_A {X : Type} {A : StateAutomaton I X} {B : StateAutomaton X O} {t : I} : accepts (comp A B) t →  accepts A t := by
+  sorry
 
 theorem StateAutomaton.comp.spec {X : Type} {A : StateAutomaton I X} {B : StateAutomaton X O} {fa : I → Option X} {fb : X → Option O}
   (ma : models_function A fa) (mb : models_function B fb) :
@@ -732,12 +746,22 @@ theorem StateAutomaton.comp.spec {X : Type} {A : StateAutomaton I X} {B : StateA
 
     refine ⟨acc,?_⟩
     intro t c
+    have a_accept := comp.accepts_A c
     match h : Option.bind (fa t) fb with
       | some w =>
         simp only
         simp only [Option.bind_eq_some] at h
         obtain ⟨x,atx, bxw⟩ := h
+        have a_v := ma.right t a_accept
+        simp [atx] at a_v
+
+
         unfold result
+        have a_halt := ((auto A).halts_of_accepts a_accept)
+
+        have a_lead:= comp_auto_e A B (init A t) a_accept
+        set a_n := (auto A).haltsIn (init A t) a_halt
+
         unfold comp
         simp only
 
@@ -765,7 +789,11 @@ theorem StateAutomaton.comp.spec {X : Type} {A : StateAutomaton I X} {B : StateA
         tauto
 
 
+-- todo:
 
+-- And:  A.I × B.I → A.O × B.O
+-- Or (parallel):  A.I × B.I → A.O ⊕ B.O
+-- Map : A.I ⊕ B.I → A.O ⊕ B.O
 
 
 
