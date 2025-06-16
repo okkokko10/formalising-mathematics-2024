@@ -348,22 +348,15 @@ theorem nat_le_ext {a b : ℕ} : (∀i : ℕ, a ≤ i ↔ b ≤ i) → a = b := 
 section automatonConfiguration
 
 class AutomatonConfiguration (H : Type) where
-  yield (C : H) : H
+  yield' (C : H) : H
   acceptsImmediate (C : H) : Prop
   rejectsImmediate (C : H) : Prop
   acceptsImmediate_decidable : DecidablePred acceptsImmediate
   rejectsImmediate_decidable : DecidablePred rejectsImmediate
-  rejectsImmediate_yield_rejectsImmediate (C : H) : rejectsImmediate C → rejectsImmediate (yield C)
-  acceptsImmediate_yield_acceptsImmediate (C : H) : acceptsImmediate C → acceptsImmediate (yield C)
   exclusive_rejects_accepts_immediate (C : H) : rejectsImmediate C → acceptsImmediate C → False
 
 
 variable {H} [AutomatonConfiguration H]
-
-
-def AutomatonConfiguration.leads' (a : H) (b : H) : Prop :=
-    _root_.leads yield a b
-
 
 def AutomatonConfiguration.haltsImmediate (a : H) : Prop :=
   rejectsImmediate a ∨ acceptsImmediate a
@@ -374,6 +367,22 @@ instance AutomatonConfiguration.haltsImmediate_decidable : @DecidablePred H (hal
   unfold haltsImmediate
   intro a
   exact @instDecidableOr _ _ (rejectsImmediate_decidable a) (acceptsImmediate_decidable a)
+
+
+def AutomatonConfiguration.yield (a : H) : H := if haltsImmediate a then a else yield' a
+
+theorem AutomatonConfiguration.rejectsImmediate_yield_rejectsImmediate (C : H) : rejectsImmediate C → rejectsImmediate (yield C) := by
+  intro r
+  simp only [yield, haltsImmediate, r, true_or, ite_true]
+
+theorem AutomatonConfiguration.acceptsImmediate_yield_acceptsImmediate (C : H) : acceptsImmediate C → acceptsImmediate (yield C) := by
+  intro r
+  simp only [yield, haltsImmediate, r, or_true, ite_true]
+
+
+def AutomatonConfiguration.leads' (a : H) (b : H) : Prop :=
+    _root_.leads yield a b
+
 
 
 
@@ -895,13 +904,13 @@ theorem TuringConfiguration.exclusive_rejects_accepts_immediate {a : TuringConfi
 
 
 instance : AutomatonConfiguration (TuringConfiguration M) where
-  yield (C) := TuringConfiguration.yield C
+  yield' (C) := TuringConfiguration.yield C
   acceptsImmediate (C) := TuringConfiguration.acceptsImmediate C
   rejectsImmediate (C) := TuringConfiguration.rejectsImmediate C
   acceptsImmediate_decidable := sorry -- TODO: bring back DecidableEq Q
   rejectsImmediate_decidable := sorry
-  rejectsImmediate_yield_rejectsImmediate (C) (h) := TuringConfiguration.rejectsImmediate_yield_rejectsImmediate C h
-  acceptsImmediate_yield_acceptsImmediate (C) (h) := TuringConfiguration.acceptsImmediate_yield_acceptsImmediate C h
+  -- rejectsImmediate_yield_rejectsImmediate (C) (h) := TuringConfiguration.rejectsImmediate_yield_rejectsImmediate C h
+  -- acceptsImmediate_yield_acceptsImmediate (C) (h) := TuringConfiguration.acceptsImmediate_yield_acceptsImmediate C h
   exclusive_rejects_accepts_immediate (_) (hr) (ha) := TuringConfiguration.exclusive_rejects_accepts_immediate ha hr
 
 end turingConfiguration
