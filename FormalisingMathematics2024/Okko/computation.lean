@@ -427,6 +427,9 @@ theorem AutomatonConfiguration.halts_def' {a : H} :
   simp only [halts_def,leads_pred']
   exact Iff.symm leads_pred_def'
 
+theorem AutomatonConfiguration.halts_of_accepts {a : H} (h : accepts a) : halts a := by tauto
+theorem AutomatonConfiguration.halts_of_rejects {a : H} (h : halt_rejects a) : halts a := by tauto
+
 
 
 
@@ -482,7 +485,7 @@ def AutomatonConfiguration.leads_nth (a : H) (n : ℕ) : H :=
 
 def AutomatonConfiguration.haltsIn (a : H) (h : halts a) : ℕ := leads_pred_steps (halts_def'.mp h)
 
-def AutomatonConfiguration.result (a : H) (h : halts a) : H := leads_nth a (haltsIn a h)
+def AutomatonConfiguration.result (a : H) (h : accepts a) : H := leads_nth a (haltsIn a (halts_of_accepts h))
 
 end automatonConfiguration
 
@@ -491,26 +494,44 @@ section stateAutomaton
 
 -- automaton with an input/output tape and an internal state
 
-structure StateAutomaton (IO : Type)
+structure StateAutomaton (I : Type) (O : Type)
   where
   H : Type
   auto : AutomatonConfiguration H
-  init (t : IO) : H
-  get (a : H) : IO
+  init (t : I) : H
+  get (a : H) : O
 
-variable {IO : Type} (M : StateAutomaton IO) (tape : IO)
+variable {I O : Type} (M : StateAutomaton I O) (tape : I)
 
 def StateAutomaton.accepts : Prop := (auto M).accepts ((init M) tape)
 def StateAutomaton.halt_rejects : Prop := (auto M).halt_rejects ((init M) tape)
 
-def StateAutomaton.total : Prop := ∀ t : IO, (auto M).halts ((init M) t)
+def StateAutomaton.halts : Prop := (auto M).halts ((init M) tape)
 
--- def StateAutomaton.output : Option IO := (auto M). ((init M) tape)
+def StateAutomaton.total : Prop := ∀ t : I, (auto M).halts ((init M) t)
+
+def StateAutomaton.result (h : accepts M tape) : O := get M ((auto M).result ((init M) tape) h)
+
 
 
 -- on all inputs, both automata have the same acceptance.
-def StateAutomaton.same_accept (A B : StateAutomaton IO) := ∀ t : IO, accepts A t ↔ accepts B t
+def StateAutomaton.same_accept {O' : Type} (A : StateAutomaton I O) (B : StateAutomaton I O') : Prop := ∀ t : I, accepts A t ↔ accepts B t
 
+
+-- def StateAutomaton.same_result (A B : StateAutomaton I O) (h : same_accept A B) : Prop := ∀ t : I, result A t = (fun (c : accepts A t) ↦ result B t ((h t).mp c))
+-- the acceptance and results are the same
+def StateAutomaton.same_result (A B : StateAutomaton I O): Prop := ∃(h : same_accept A B), ∀ t : I, ∀(c : accepts A t), result A t c = result B t ((h t).mp c)
+
+
+def StateAutomaton.conversion : O := get M <| init M tape
+
+def StateAutomaton.comp {X : Type} (A : StateAutomaton I X) (B : StateAutomaton X O) : StateAutomaton I O where
+  H := A.H ⊕ B.H
+  auto : AutomatonConfiguration (A.H ⊕ B.H) :=
+    sorry
+
+  init (t) := .inl (A.init t)
+  get (a) := Sum.elim (conversion B <| get A ·) (get B ·) a -- if get is called on a state before A halts, `get A` is fed into `conversion B`
 
 
 end stateAutomaton
