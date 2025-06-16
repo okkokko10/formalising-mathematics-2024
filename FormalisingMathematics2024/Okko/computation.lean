@@ -449,6 +449,8 @@ theorem AutomatonConfiguration.halts_def' {a : H} :
   simp only [halts_def,leads_pred']
   exact Iff.symm leads_pred_def'
 
+theorem AutomatonConfiguration.haltImmediate_of_acceptsImmediate {a : H} (h : acceptsImmediate a) : haltsImmediate a := by tauto
+theorem AutomatonConfiguration.haltImmediate_of_rejectsImmediate {a : H} (h : rejectsImmediate a) : haltsImmediate a := by tauto
 theorem AutomatonConfiguration.halts_of_accepts {a : H} (h : accepts a) : halts a := by tauto
 theorem AutomatonConfiguration.halts_of_rejects {a : H} (h : halt_rejects a) : halts a := by tauto
 
@@ -505,7 +507,12 @@ theorem AutomatonConfiguration.exclusive_rejects_accepts (a : H) :
 def AutomatonConfiguration.leads_nth (a : H) (n : ℕ) : H :=
     _root_.sequence_leading yield a n
 
-def AutomatonConfiguration.haltsIn (a : H) (h : halts a) : ℕ := leads_pred_steps (halts_def'.mp h)
+def AutomatonConfiguration.haltsIn (a : H) (h : halts a) : ℕ := Nat.find (halts_def'.mp h)
+theorem AutomatonConfiguration.haltsIn_min (a : H) (h : halts a) (m) : m < haltsIn a h → ¬ haltsImmediate (leads_nth a m) := by
+  intro mh
+  exact Nat.find_min (halts_def'.mp h) mh
+
+
 
 def AutomatonConfiguration.result (a : H) (h : accepts a) : H := leads_nth a (haltsIn a (halts_of_accepts h))
 
@@ -633,13 +640,132 @@ def StateAutomaton.comp_auto  {X : Type} (A : StateAutomaton I X) (B : StateAuto
       true_and]
     exact (auto B).exclusive_rejects_accepts_immediate
 
+theorem StateAutomaton.comp_auto_not_accept_A {X : Type} (A : StateAutomaton I X) (B : StateAutomaton X O) (a : A.H) :
+  ¬(comp_auto A B).acceptsImmediate (.inl a) := by
+  intro h
+  unfold comp_auto at h
+  simp only [Sum.elim_inl] at h
 
+
+theorem StateAutomaton.comp_auto_halts_A {X : Type} {A : StateAutomaton I X} {B : StateAutomaton X O} {a : A.H} :
+  (comp_auto A B).haltsImmediate (.inl a) ↔ (auto A).rejectsImmediate a := by
+  unfold AutomatonConfiguration.haltsImmediate
+  unfold comp_auto
+  simp only [Sum.elim_inl, or_false]
+
+theorem StateAutomaton.comp_auto_ee {X : Type} (A : StateAutomaton I X) (B : StateAutomaton X O) (a : A.H) (h) (n' : ℕ)
+    (nv : n' ≤ ((auto A).haltsIn a ((auto A).halts_of_accepts h))):
+    (comp_auto A B).leads_nth (.inl a) n' = .inl ((auto A).leads_nth (a) n') := by
+
+  set n := ((auto A).haltsIn a ((auto A).halts_of_accepts h))
+  unfold AutomatonConfiguration.leads_nth
+  revert nv
+  induction n' with
+  | zero =>
+    simp only [Nat.zero_eq, zero_le, sequence_leading_zero, forall_true_left]
+  | succ n' prev =>
+    intro s
+    have s': n' < n := s
+    simp only [sequence_leading_succ]
+    specialize prev s'.le
+    simp only [prev]
+    -- unfold AutomatonConfiguration.yield
+    simp_rw [AutomatonConfiguration.yield]
+    set w := (sequence_leading (auto A).yield a n') with w_def
+
+    have not_haltIm := (auto A).haltsIn_min a ((auto A).halts_of_accepts h) n' s'
+    unfold AutomatonConfiguration.leads_nth at not_haltIm
+    rw [←w_def] at not_haltIm
+    split
+    {
+    rename_i hh
+    have := (auto A).haltImmediate_of_rejectsImmediate (comp_auto_halts_A.mp hh)
+    simp only [this, ite_true]
+    simp_all only [not_true_eq_false]
+    }
+    -- aesop
+    rename_i hh
+    rw [comp_auto_halts_A] at hh
+    unfold comp_auto
+    simp only [Sum.elim_inl]
+    rw [←w_def]
+
+
+
+    split
+    {
+      rename_i hhh
+      exact not_haltIm ((auto A).haltImmediate_of_acceptsImmediate hhh)
+    }
+    apply congrArg
+    unfold AutomatonConfiguration.yield
+    rename_i h_1
+    simp_all only [ite_false]
+
+
+
+theorem StateAutomaton.comp_auto_e {X : Type} (A : StateAutomaton I X) (B : StateAutomaton X O) (a : A.H) (h):
+    (comp_auto A B).leads_nth (.inl a) ((auto A).haltsIn a ((auto A).halts_of_accepts h)) = .inl ((auto A).result a h) := by
+  apply comp_auto_ee
+  rfl
+  simp_all only [le_refl]
+
+-- todo: attempt some rule where an automaton simulating another contains steps corresponding to steps in the simulated automaton, and each simulated step finishes in finite time.
 
 def StateAutomaton.comp {X : Type} (A : StateAutomaton I X) (B : StateAutomaton X O) : StateAutomaton I O where
   H := A.H ⊕ B.H
   auto := comp_auto A B
   init (t) := .inl (A.init t)
-  get (a) := Sum.elim (conversion B <| get A ·) (get B ·) a -- if get is called on a state before A halts, `get A` is fed into `conversion B`
+  get (a) := Sum.elim (get B <| init B <| get A ·) (get B ·) a -- if get is called on a state before A halts, `get A` is fed into `conversion B`
+
+-- theorem StateAutomaton.comp.get_ready {X : Type} (A : StateAutomaton I X) (B : StateAutomaton X O) :
+
+
+
+theorem StateAutomaton.comp.spec {X : Type} {A : StateAutomaton I X} {B : StateAutomaton X O} {fa : I → Option X} {fb : X → Option O}
+  (ma : models_function A fa) (mb : models_function B fb) :
+  models_function (comp A B) (fun t ↦ Option.bind (fa t) fb) := by
+    unfold models_function
+    simp only
+
+    have acc : models_function_accept (comp A B) fun x ↦ Option.isSome (Option.bind (fa x) fb) = true := sorry
+
+    refine ⟨acc,?_⟩
+    intro t c
+    match h : Option.bind (fa t) fb with
+      | some w =>
+        simp only
+        simp only [Option.bind_eq_some] at h
+        obtain ⟨x,atx, bxw⟩ := h
+        unfold result
+        unfold comp
+        simp only
+
+        -- unfold AutomatonConfiguration.result
+        set e := @AutomatonConfiguration.result _ (auto (comp A B)) (Sum.inl (init A t)) c
+        cases hh : e with
+        | inl v =>
+          simp only [Sum.elim_inl]
+          -- I think it's exfalso unless B halts immediately
+          simp only at hh
+
+          sorry
+        | inr y =>
+        unfold Sum.elim
+
+        simp only
+
+
+        sorry
+      | none =>
+        simp only
+        simp only [models_function_accept] at acc
+        have := acc t |>.mp c
+        rw [h,Option.isSome_none] at this
+        tauto
+
+
+
 
 
 
