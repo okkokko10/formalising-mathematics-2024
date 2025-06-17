@@ -308,6 +308,20 @@ def leads_pred_steps {f : X → X}  {a: X} {p : X → Prop} [DecidablePred p] (l
 
 
 
+-- theorem leads_stage (f1 : X → X) (f2 : X → X) {a b : X} (p : X → Prop) [DecidablePred p] (l : leads (fun x ↦ if) a b) (ind)
+
+-- leads f a b but all intermediate steps including a and b satisfy p
+def leads_preserving (f : X → X) (p : X → Prop) (a b : X) := ∃n, sequence_leading f a n = b ∧ ∀i ≤ n, p (sequence_leading f a i)
+
+-- def leads_in (f : X → X) (a b : X) (n : ℕ) : Prop
+
+-- -- if p is monotonous, a leads to b, p b and ¬p a, then the leading can be uniquely split into ¬p and p
+-- theorem leads_stage (f : X → X) {a b : X} (p : X → Prop) [DecidablePred p] (l : leads f a b) (hp : ∀x, p x → p (f x))
+--     (ha : ¬ p a) (hb : p b) : ∃z : ℕ, ∀i ≤ z, ¬p (sequence_leading f a i)  := sorry
+
+-- actually, is ha needed?
+
+
 end lead
 
 
