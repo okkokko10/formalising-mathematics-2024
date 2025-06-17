@@ -307,17 +307,66 @@ theorem leads_pred_or {f : X → X} {a : X} {p1 p2 : X → Prop} : (leads_pred f
 def leads_pred_steps {f : X → X}  {a: X} {p : X → Prop} [DecidablePred p] (l : leads_pred f a p) : ℕ := Nat.find l
 
 
+-- todo: use this form more.
+def leads_in (f : X → X) (a b : X) (n : ℕ) : Prop := sequence_leading f a n = b
+
+#check sequence_leading_succ
+
+theorem sequence_leading_pred {f : X → X} {a: X} {i : ℕ} (hi : i ≠ 0) : f (sequence_leading f a (i - 1)) = (sequence_leading f a i) := by
+  simp_rw [←sequence_leading_succ]
+  have : i - 1 + 1 = i := Nat.succ_pred hi
+  rw [this]
 
 -- theorem leads_stage (f1 : X → X) (f2 : X → X) {a b : X} (p : X → Prop) [DecidablePred p] (l : leads (fun x ↦ if) a b) (ind)
 
 -- leads f a b but all intermediate steps including a and b satisfy p
-def leads_preserving (f : X → X) (p : X → Prop) (a b : X) := ∃n, sequence_leading f a n = b ∧ ∀i ≤ n, p (sequence_leading f a i)
+def leads_preserving_in (f : X → X) (p : X → Prop) (a b : X) (n) := leads_in f a b n ∧ ∀i ≤ n, p (sequence_leading f a i)
 
--- def leads_in (f : X → X) (a b : X) (n : ℕ) : Prop
+-- -- if p is monotonous, a leads to b, p a < p b, then the leading can be uniquely split into ¬p and p
+-- theorem leads_partition_while (f : X → X) {a b : X} (p : X → Prop) [DecidablePred p] {n} (l : leads_in f a b n) (hp : ∀x, p x → p (f x))
+--     (ha : ¬ p a) (hb : p b) : ∃z ≤ n, ∀i, z < i ↔ p (sequence_leading f a i)  := sorry
 
--- -- if p is monotonous, a leads to b, p b and ¬p a, then the leading can be uniquely split into ¬p and p
--- theorem leads_stage (f : X → X) {a b : X} (p : X → Prop) [DecidablePred p] (l : leads f a b) (hp : ∀x, p x → p (f x))
---     (ha : ¬ p a) (hb : p b) : ∃z : ℕ, ∀i ≤ z, ¬p (sequence_leading f a i)  := sorry
+theorem leads_partition_while (f : X → X) {a b : X} (p : X → Prop) [DecidablePred p] {n} (l : leads_in f a b n) (hp : ∀x, p x → p (f x))
+    (ha : ¬ p a) (hb : p b) :
+    ∃z < n, (leads_preserving_in f (¬ p ·) a (sequence_leading f a z) z)
+    ∧ (leads_preserving_in f p (f <| sequence_leading f a z) b (n - z - 1)) := by
+  have n_pos : 0 < n :=(by
+    rw [@Nat.pos_iff_ne_zero]
+    intro n0
+    have := (n0 ▸ l)
+    have : a = b := by exact this
+    apply (this ▸ ha) hb
+    )
+  have have_p: ∃n'<n, p (f (sequence_leading f a n')) := ⟨n-1,Nat.sub_lt n_pos zero_lt_one,by
+    simp_rw [←sequence_leading_succ]
+    have : n - 1 + 1 = n := Nat.succ_pred n_pos.ne'
+    rw [this,l]
+    exact hb⟩
+
+  have ⟨z1,z2⟩ := Nat.find_spec have_p
+  set z := Nat.find have_p
+  use z
+  refine ⟨z1,?_,?_⟩
+  ·
+    refine ⟨?_,?_⟩
+    rfl
+    intro i iz
+    by_cases hi : i = 0
+    · simp_all only [Nat.find_lt_iff, and_self_left, zero_le, sequence_leading_zero,
+        not_false_eq_true, ha]
+
+    refine Nat.find_min (m := i - 1) ?_ ?_
+
+    have ⟨z1,z2⟩ := Nat.find_min have_p
+
+
+    sorry
+
+  ·
+
+    sorry
+
+
 
 -- actually, is ha needed?
 
