@@ -310,6 +310,26 @@ def leads_pred_steps {f : X → X}  {a: X} {p : X → Prop} [DecidablePred p] (l
 -- todo: use this form more.
 def leads_in (f : X → X) (a b : X) (n : ℕ) : Prop := sequence_leading f a n = b
 
+
+-- @[trans]
+theorem leads_in_connection (f : X → X) (a b c: X) (ab bc) : leads_in f a b ab → leads_in f b c bc → leads_in f a c (ab + bc) := by
+  unfold leads_in
+  intro a_b b_c
+  rw [←b_c,←a_b]
+  exact sequence_leading_tail ab
+theorem leads_in_connection' (f : X → X) (a b c: X) (ab bc) : leads_in f a b ab → leads_in f a c (ab + bc) → leads_in f b c bc := by
+  unfold leads_in
+  intro a_b a_c
+  rw [sequence_leading_tail ab,a_b] at a_c
+  exact a_c
+
+
+-- theorem leads_in_self (f : X → X) (a: X) : leads_in f a a 0 := by
+--   rw [leads_def]
+--   use 0
+--   exact sequence_leading_zero
+
+
 #check sequence_leading_succ
 
 theorem sequence_leading_pred {f : X → X} {a: X} {i : ℕ} (hi : i ≠ 0) : f (sequence_leading f a (i - 1)) = (sequence_leading f a i) := by
@@ -354,17 +374,33 @@ theorem leads_partition_while (f : X → X) {a b : X} (p : X → Prop) [Decidabl
     by_cases hi : i = 0
     · simp_all only [Nat.find_lt_iff, and_self_left, zero_le, sequence_leading_zero,
         not_false_eq_true, ha]
-
-    refine Nat.find_min (m := i - 1) ?_ ?_
-
-    have ⟨z1,z2⟩ := Nat.find_min have_p
-
-
-    sorry
-
+    rw [←sequence_leading_pred hi]
+    have w := Nat.find_min (m := i - 1) have_p (lt_of_lt_of_le (Nat.sub_lt (Nat.pos_of_ne_zero hi) zero_lt_one) iz)
+    intro c
+    apply w
+    simp only [c, and_true]
+    apply lt_of_le_of_lt ?_ z1
+    apply le_trans ?_ iz
+    exact Nat.sub_le i 1
   ·
+    unfold leads_preserving_in leads_in
+    simp_rw [←sequence_leading_succ]
+    simp only [←sequence_leading_tail]
+    refine ⟨?_,?_⟩
+    rw [←l]
+    apply congrArg
+    exact Nat.add_sub_of_le z1
+    intro i i_n
+    induction i with
+    | zero =>
+      simp
+      exact z2
+    | succ i' prev =>
+      specialize prev (by linarith)
+      change p (sequence_leading f a (z + 1 + i' + 1))
+      rw [sequence_leading_succ]
+      exact hp (sequence_leading f a (z + 1 + i')) prev
 
-    sorry
 
 
 
