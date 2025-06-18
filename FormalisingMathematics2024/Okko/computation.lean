@@ -345,11 +345,13 @@ def leads_preserving_in (f : X → X) (p : X → Prop) (a b : X) (n) := leads_in
 -- -- if p is monotonous, a leads to b, p a < p b, then the leading can be uniquely split into ¬p and p
 -- theorem leads_partition_while (f : X → X) {a b : X} (p : X → Prop) [DecidablePred p] {n} (l : leads_in f a b n) (hp : ∀x, p x → p (f x))
 --     (ha : ¬ p a) (hb : p b) : ∃z ≤ n, ∀i, z < i ↔ p (sequence_leading f a i)  := sorry
+def leads_partition_while (f : X → X) (a b : X) (p : X → Prop) (z y) :=
+    (leads_preserving_in f (¬ p ·) a (sequence_leading f a z) z)
+    ∧ (leads_preserving_in f p (f <| sequence_leading f a z) b y)
 
-theorem leads_partition_while (f : X → X) {a b : X} (p : X → Prop) [DecidablePred p] {n} (l : leads_in f a b n) (hp : ∀x, p x → p (f x))
+theorem leads_partition_while_mk (f : X → X) {a b : X} (p : X → Prop) [DecidablePred p] {n} (l : leads_in f a b n) (hp : ∀x, p x → p (f x))
     (ha : ¬ p a) (hb : p b) :
-    ∃z < n, (leads_preserving_in f (¬ p ·) a (sequence_leading f a z) z)
-    ∧ (leads_preserving_in f p (f <| sequence_leading f a z) b (n - z - 1)) := by
+    ∃z < n, leads_partition_while f a b p z (n - z - 1) := by
   have n_pos : 0 < n :=(by
     rw [@Nat.pos_iff_ne_zero]
     intro n0
@@ -615,6 +617,55 @@ theorem AutomatonConfiguration.haltsIn_min (a : H) (h : halts a) (m) : m < halts
 
 def AutomatonConfiguration.result (a : H) (h : accepts a) : H := leads_nth a (haltsIn a (halts_of_accepts h))
 
+
+theorem AutomatonConfiguration.accepts_never_rejectsImmediate (a : H) (h : accepts a) (b : H) : leads' a b → rejectsImmediate b → False := by
+  intro a_b hb
+  have := (halt_rejects_def a).mpr ⟨b,hb,a_b⟩
+  exact exclusive_rejects_accepts a this h
+
+theorem AutomatonConfiguration.rejects_never_acceptsImmediate (a : H) (h : halt_rejects a) (b : H) : leads' a b → acceptsImmediate b → False := by
+  intro a_b hb
+  have  : accepts a := ⟨b,hb,a_b⟩
+  exact exclusive_rejects_accepts a h this
+
+-- todo: same for rejects
+theorem AutomatonConfiguration.accepts_then_haltsImmediate_accepts (a : H) (h : accepts a) (b : H) (l : leads' a b) : haltsImmediate b ↔ acceptsImmediate b := by
+  refine ⟨?_,haltImmediate_of_acceptsImmediate⟩
+  intro hb
+  by_contra hb'
+  have hb'': rejectsImmediate b := by
+    cases hb
+    assumption
+    exfalso
+    tauto
+  -- have  : halt_rejects a := ⟨b,hb'',a_b⟩
+  exact accepts_never_rejectsImmediate a h b l hb''
+
+
+def AutomatonConfiguration.acceptsIn (a : H) (h : accepts a) : ℕ := Nat.find (accepts_def'.mp h)
+theorem AutomatonConfiguration.acceptsIn_def (a : H) (h : accepts a) : acceptsIn a h = Nat.find (accepts_def'.mp h) := by rfl
+-- @[simp]
+theorem AutomatonConfiguration.acceptsIn_eq_haltsIn (a : H) (h : accepts a) : acceptsIn a h = haltsIn a (halts_of_accepts h) := by
+  unfold acceptsIn
+  refine nat_le_ext ?_
+  intro i
+  unfold haltsIn
+  rw [@Nat.find_le_iff]
+  rw [@Nat.find_le_iff]
+  suffices ∀m, haltsImmediate (sequence_leading yield a m) ↔ acceptsImmediate (sequence_leading yield a m) by simp_rw [this]
+  intro m
+  rw [accepts_then_haltsImmediate_accepts a h _ _]
+  use m -- todo: make a proper theorem
+
+
+theorem AutomatonConfiguration.result_def (a : H) (h : accepts a) : result a h = leads_nth a (acceptsIn a h) := by
+  simp only [acceptsIn_eq_haltsIn]
+  rfl
+
+theorem AutomatonConfiguration.result_accepts (a : H) (h : accepts a)  : acceptsImmediate (result a h) := by
+  rw [result_def]
+  exact Nat.find_spec (accepts_def'.mp h)
+
 end automatonConfiguration
 
 
@@ -753,9 +804,9 @@ theorem StateAutomaton.comp_auto_halts_A {X : Type} {A : StateAutomaton I X} {B 
   simp only [Sum.elim_inl, or_false]
 
 theorem StateAutomaton.comp_auto_ee {X : Type} (A : StateAutomaton I X) (B : StateAutomaton X O) (a : A.H) (h) (n' : ℕ)
-    (nv : n' ≤ ((auto A).haltsIn a ((auto A).halts_of_accepts h))):
+    (nv : n' ≤ ((auto A).acceptsIn a h)):
     (comp_auto A B).leads_nth (.inl a) n' = .inl ((auto A).leads_nth (a) n') := by
-
+  rw [(auto A).acceptsIn_eq_haltsIn] at nv
   set n := ((auto A).haltsIn a ((auto A).halts_of_accepts h))
   unfold AutomatonConfiguration.leads_nth
   revert nv
@@ -802,12 +853,63 @@ theorem StateAutomaton.comp_auto_ee {X : Type} (A : StateAutomaton I X) (B : Sta
     simp_all only [ite_false]
 
 
-
 theorem StateAutomaton.comp_auto_e {X : Type} (A : StateAutomaton I X) (B : StateAutomaton X O) (a : A.H) (h):
-    (comp_auto A B).leads_nth (.inl a) ((auto A).haltsIn a ((auto A).halts_of_accepts h)) = .inl ((auto A).result a h) := by
+    (comp_auto A B).leads_nth (.inl a) ((auto A).acceptsIn a h) = .inl ((auto A).result a h) := by
+  rw [(auto A).result_def]
   apply comp_auto_ee
   rfl
-  simp_all only [le_refl]
+
+
+theorem StateAutomaton.comp_auto_b_leads_b {X : Type} (A : StateAutomaton I X) (B : StateAutomaton X O) (b : B.H) :
+    Sum.isRight ((comp_auto A B).yield (.inr b)) := by
+  unfold AutomatonConfiguration.yield
+  split
+  · simp only [Sum.isRight_inr]
+  rfl
+
+theorem StateAutomaton.comp_auto_result_b {X : Type} (A : StateAutomaton I X) (B : StateAutomaton X O) (x : A.H ⊕ B.H) (h) :
+    Sum.isRight ((comp_auto A B).result x h) := by
+  set b := (comp_auto A B).result _ _
+  have hb : (comp_auto A B).acceptsImmediate b := (comp_auto A B).result_accepts _ _
+  simp only [comp_auto, Sum.elim_inl, eq_mpr_eq_cast, Sum.elim_inr, cast_eq, id_eq] at hb
+  by_contra lft
+  simp only [ne_eq, Bool.not_eq_true, Sum.isRight_eq_false,Sum.isLeft_iff] at lft
+  obtain ⟨y,y_re⟩ := lft
+  rw [y_re] at hb
+  simp only [Sum.elim_inl] at hb
+
+
+#check leads_partition_while
+
+-- example
+theorem StateAutomaton.comp_auto_split {X : Type} (A : StateAutomaton I X) (B : StateAutomaton X O) (a : A.H) (h : (comp_auto A B).accepts (.inl a)) :
+    ∃z<((comp_auto A B).acceptsIn (Sum.inl a) h), leads_partition_while (comp_auto A B).yield (Sum.inl a) ((comp_auto A B).result (.inl a) h) (Sum.isRight ·) z (((comp_auto A B).acceptsIn (Sum.inl a) h) - z - 1)
+     := by
+
+  set b := (comp_auto A B).result (.inl a) h with b_def
+  rw [(comp_auto A B).result_def] at b_def
+  set n := ((comp_auto A B).acceptsIn (Sum.inl a) _)
+
+  let p (v : A.H ⊕ B.H) : Prop := Sum.isRight v
+  let f := (comp_auto A B).yield
+  let l : leads_in f (.inl a) b n := by
+    exact b_def.symm
+  -- (comp_auto A B).leads_nth (.inl a)
+  -- have : (comp_auto A B).leads_nth
+  have hp : ∀ (x : A.H ⊕ B.H), p x → p (f x) := by
+    simp only [Sum.forall, Sum.isRight_inl, IsEmpty.forall_iff, implies_true, Sum.isRight_inr,
+      forall_true_left, true_and]
+    intro b'
+    exact comp_auto_b_leads_b A B b'
+  have ha : ¬p (Sum.inl a) := by exact Sum.not_isRight.mpr rfl
+  have hb : p b := by
+    exact comp_auto_result_b A B (Sum.inl a) h
+
+
+  have := leads_partition_while_mk f p l hp ha hb
+  tauto
+
+
 
 
 theorem StateAutomaton.comp_auto_ew {X : Type} (A : StateAutomaton I X) (B : StateAutomaton X O) (a : A.H) (h)
